@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { addMinutes, isBefore, isAfter, subMinutes, format } from 'date-fns';
 import { updateBookingStatus } from '../utils/bookingApi';
+import { SubmissionUpload } from './SubmissionUpload';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -127,9 +128,13 @@ function JoinButton({ booking }) {
 export function BookingCard({ booking, isInterviewer, onStatusUpdate }) {
   const [loading, setLoading] = useState(null);
   const [actionError, setActionError] = useState('');
+  const [showSubmit, setShowSubmit] = useState(false);
 
   const date = new Date(booking.scheduledAt);
   const canAct = isInterviewer && booking.status === 'Pending';
+  const isPast = isAfter(new Date(), addMinutes(new Date(booking.scheduledAt), booking.durationMinutes ?? 60));
+  const canSubmit = booking.status === 'Confirmed' && isPast; // both roles
+  const profileType = isInterviewer ? 'Interviewer' : 'Candidate';
 
   async function handleAction(status) {
     setLoading(status);
@@ -235,6 +240,39 @@ export function BookingCard({ booking, isInterviewer, onStatusUpdate }) {
           )}
         </div>
       </div>
+      {/* Submit solution — candidates only, after confirmed session ends */}
+      {canSubmit && (
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={() => setShowSubmit((v) => !v)}
+            className="flex items-center gap-2 text-sm font-medium text-brand-600 hover:text-brand-500"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+              {isInterviewer ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              )}
+            </svg>
+            {showSubmit
+              ? 'Hide'
+              : isInterviewer ? 'View & evaluate submission' : 'Submit your solution'}
+            <svg
+              className={`h-4 w-4 transition-transform ${showSubmit ? 'rotate-180' : ''}`}
+              fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+            </svg>
+          </button>
+
+          {showSubmit && (
+            <div className="mt-4">
+              <SubmissionUpload bookingId={booking.id} profileType={profileType} />
+            </div>
+          )}
+        </div>
+      )}
     </article>
   );
 }
