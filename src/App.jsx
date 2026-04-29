@@ -7,6 +7,7 @@ import { Bookings } from './pages/Bookings';
 import { Dashboard } from './pages/Dashboard';
 import { Discovery } from './pages/Discovery';
 import { EditProfile } from './pages/EditProfile';
+import { InterviewRoom } from './pages/InterviewRoom';
 import { Onboarding } from './pages/Onboarding';
 
 function App({ signOut, user }) {
@@ -100,6 +101,15 @@ function App({ signOut, user }) {
             </AuthGuard>
           }
           path="/bookings"
+        />
+
+        <Route
+          element={
+            <AuthGuard profileType={profileType}>
+              <InterviewRoom profileType={profileType} />
+            </AuthGuard>
+          }
+          path="/room/:id"
         />
 
         <Route element={<Onboarding profileType={profileType} />} path="/onboarding" />
