@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { fetchAuthSession, fetchUserAttributes } from 'aws-amplify/auth';
 import { AuthGuard } from './components/AuthGuard';
+import { Availability } from './pages/Availability';
+import { Bookings } from './pages/Bookings';
 import { Dashboard } from './pages/Dashboard';
 import { Discovery } from './pages/Discovery';
 import { EditProfile } from './pages/EditProfile';
@@ -80,6 +82,24 @@ function App({ signOut, user }) {
             </AuthGuard>
           }
           path="/discovery"
+        />
+
+        <Route
+          element={
+            <AuthGuard profileType={profileType}>
+              <Availability email={email} profileType={profileType} signOut={signOut} />
+            </AuthGuard>
+          }
+          path="/availability"
+        />
+
+        <Route
+          element={
+            <AuthGuard profileType={profileType}>
+              <Bookings email={email} profileType={profileType} signOut={signOut} />
+            </AuthGuard>
+          }
+          path="/bookings"
         />
 
         <Route element={<Onboarding profileType={profileType} />} path="/onboarding" />

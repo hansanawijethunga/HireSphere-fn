@@ -39,11 +39,26 @@ export function Dashboard({ email, profileType, signOut }) {
               <span className="mx-2 text-slate-300">|</span>
               <span>{profileType}</span>
             </div>
+            {profileType === 'Interviewer' ? (
+              <Link
+                className="rounded-md bg-brand-600 px-4 py-2 font-medium text-white transition hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+                to="/availability"
+              >
+                My Availability
+              </Link>
+            ) : (
+              <Link
+                className="rounded-md bg-brand-600 px-4 py-2 font-medium text-white transition hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+                to="/discovery"
+              >
+                Find Interviewers
+              </Link>
+            )}
             <Link
-              className="rounded-md bg-brand-600 px-4 py-2 font-medium text-white transition hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-              to="/discovery"
+              className="rounded-md border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+              to="/bookings"
             >
-              Find Interviewers
+              My Bookings
             </Link>
             <Link
               className="rounded-md border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
@@ -81,26 +96,49 @@ export function Dashboard({ email, profileType, signOut }) {
           </div>
         </section>
 
-        <section className="mt-6 rounded-lg border border-brand-100 bg-gradient-to-r from-brand-600 to-brand-700 p-6 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-brand-100">Ready to practice?</p>
-              <h2 className="mt-1 text-xl font-bold text-white">Browse interviewers and book a session</h2>
-              <p className="mt-1.5 text-sm text-brand-200">
-                Filter by domain, experience level, and price to find the right match.
-              </p>
+        {profileType === 'Interviewer' ? (
+          <section className="mt-6 rounded-lg border border-brand-100 bg-gradient-to-r from-brand-600 to-brand-700 p-6 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-brand-100">Get discovered by candidates</p>
+                <h2 className="mt-1 text-xl font-bold text-white">Set your weekly availability</h2>
+                <p className="mt-1.5 text-sm text-brand-200">
+                  Define the hours you are open each week so candidates can book sessions with you.
+                </p>
+              </div>
+              <Link
+                className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 shadow transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-brand-600"
+                to="/availability"
+              >
+                My Availability
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </Link>
             </div>
-            <Link
-              className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 shadow transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-brand-600"
-              to="/discovery"
-            >
-              Find Interviewers
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-              </svg>
-            </Link>
-          </div>
-        </section>
+          </section>
+        ) : (
+          <section className="mt-6 rounded-lg border border-brand-100 bg-gradient-to-r from-brand-600 to-brand-700 p-6 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-brand-100">Ready to practice?</p>
+                <h2 className="mt-1 text-xl font-bold text-white">Browse interviewers and book a session</h2>
+                <p className="mt-1.5 text-sm text-brand-200">
+                  Filter by domain, experience level, and price to find the right match.
+                </p>
+              </div>
+              <Link
+                className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 shadow transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-brand-600"
+                to="/discovery"
+              >
+                Find Interviewers
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </Link>
+            </div>
+          </section>
+        )}
 
         <section className="mt-6 grid gap-4 md:grid-cols-3">
           {STATIC_STATS.map((stat) => (

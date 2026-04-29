@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { BookingModal } from '../components/BookingModal';
 import { fetchInterviewers } from '../utils/searchApi';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -95,7 +96,7 @@ function InterviewerCard({ interviewer, onBook }) {
 
       <button
         className="mt-4 w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-        onClick={() => onBook(interviewer.id)}
+        onClick={() => onBook(interviewer)}
         type="button"
       >
         Book Session
@@ -215,6 +216,7 @@ export function Discovery({ email, profileType, signOut }) {
   const [interviewers, setInterviewers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [bookingTarget, setBookingTarget] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -248,8 +250,8 @@ export function Discovery({ email, profileType, signOut }) {
     setFilters(DEFAULT_FILTERS);
   }
 
-  function handleBook(id) {
-    console.log('Book session for interviewer ID:', id);
+  function handleBook(interviewer) {
+    setBookingTarget({ ...interviewer, name: interviewer.email.split('@')[0] });
   }
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
@@ -441,6 +443,12 @@ export function Discovery({ email, profileType, signOut }) {
           </main>
         </div>
       </div>
+
+      <BookingModal
+        isOpen={bookingTarget !== null}
+        onClose={() => setBookingTarget(null)}
+        interviewer={bookingTarget}
+      />
     </div>
   );
 }
