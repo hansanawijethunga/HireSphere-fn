@@ -11,3 +11,5 @@ export const updateProfile = (data) =>
     method: 'PUT',
     body: JSON.stringify(data),
   });
+
+

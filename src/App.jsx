@@ -9,6 +9,8 @@ import { Discovery } from './pages/Discovery';
 import { EditProfile } from './pages/EditProfile';
 import { InterviewRoom } from './pages/InterviewRoom';
 import { Onboarding } from './pages/Onboarding';
+import { Inbox } from './components/messaging/Inbox';
+import { ChatWindow } from './components/messaging/ChatWindow';
 
 function App({ signOut, user }) {
   const [attributes, setAttributes] = useState({});
@@ -70,7 +72,7 @@ function App({ signOut, user }) {
         <Route
           element={
             <AuthGuard profileType={profileType}>
-              <Dashboard email={email} profileType={profileType} signOut={signOut} />
+              <Dashboard email={email} profileType={profileType} signOut={signOut} userId={user?.userId} />
             </AuthGuard>
           }
           path="/dashboard"
@@ -110,6 +112,24 @@ function App({ signOut, user }) {
             </AuthGuard>
           }
           path="/room/:id"
+        />
+
+        <Route
+          element={
+            <AuthGuard profileType={profileType}>
+              <Inbox email={email} profileType={profileType} signOut={signOut} userId={user?.userId} />
+            </AuthGuard>
+          }
+          path="/messages"
+        />
+
+        <Route
+          element={
+            <AuthGuard profileType={profileType}>
+              <ChatWindow email={email} profileType={profileType} signOut={signOut} userId={user?.userId} />
+            </AuthGuard>
+          }
+          path="/messages/:targetUserId"
         />
 
         <Route element={<Onboarding profileType={profileType} />} path="/onboarding" />

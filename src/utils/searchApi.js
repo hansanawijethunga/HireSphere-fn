@@ -1,5 +1,15 @@
 const SEARCH_API_URL = import.meta.env.VITE_SEARCH_API_URL;
 
+export async function getUserByCognitoSub(cognitoSub) {
+  try {
+    const res = await fetch(`${SEARCH_API_URL}/api/users/by-cognito-sub/${cognitoSub}`);
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Fetch interviewers from the search service.
  *

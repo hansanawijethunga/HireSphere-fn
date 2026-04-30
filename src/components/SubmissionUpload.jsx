@@ -27,37 +27,14 @@ function timeAgo(isoString) {
   return formatDistanceToNow(date, { addSuffix: true });
 }
 
-function SubmissionTimes({ submission }) {
-  if (!submission?.createdAt) return null;
-
-  const submitted = timeAgo(submission.createdAt);
-  const updated   = submission.updatedAt && submission.updatedAt !== submission.createdAt
-    ? timeAgo(submission.updatedAt)
-    : null;
-
-  return (
-    <p className="text-xs text-slate-400">
-      Submitted <span className="font-medium text-slate-500">{submitted}</span>
-      {updated && (
-        <>
-          <span className="mx-1.5">·</span>
-          Updated <span className="font-medium text-slate-500">{updated}</span>
-        </>
-      )}
-    </p>
-  );
-}
-
 function isValidGithubUrl(url) {
   try {
     const u = new URL(url);
     return u.hostname === 'github.com' && u.pathname.split('/').filter(Boolean).length >= 2;
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 }
 
-// ─── Shared UI atoms ──────────────────────────────────────────────────────────
+// ─── UI atoms ─────────────────────────────────────────────────────────────────
 
 function Spinner({ size = 'sm' }) {
   const cls = size === 'lg' ? 'h-5 w-5 border-2' : 'h-3.5 w-3.5 border-2';
@@ -80,6 +57,17 @@ function CircuitBanner() {
   );
 }
 
+function DisabledBanner({ message }) {
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+      <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+      </svg>
+      <span>{message}</span>
+    </div>
+  );
+}
+
 function SectionCard({ title, icon, badge, children }) {
   return (
     <div className="rounded-xl border border-slate-200 bg-white">
@@ -93,7 +81,7 @@ function SectionCard({ title, icon, badge, children }) {
   );
 }
 
-function ActionBtn({ onClick, disabled, loading, variant = 'ghost', children }) {
+function ActionBtn({ onClick, disabled, loading, variant = 'ghost', title, children }) {
   const base = 'inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50';
   const variants = {
     ghost:   'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 focus:ring-slate-400',
@@ -101,7 +89,7 @@ function ActionBtn({ onClick, disabled, loading, variant = 'ghost', children }) 
     danger:  'border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 focus:ring-rose-400',
   };
   return (
-    <button type="button" onClick={onClick} disabled={disabled || loading} className={`${base} ${variants[variant]}`}>
+    <button type="button" onClick={onClick} disabled={disabled || loading} title={title} className={`${base} ${variants[variant]}`}>
       {loading && <Spinner />}
       {children}
     </button>
@@ -109,18 +97,301 @@ function ActionBtn({ onClick, disabled, loading, variant = 'ghost', children }) 
 }
 
 function ReadOnlyBadge() {
-  return (
-    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
-      View only
-    </span>
-  );
+  return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">View only</span>;
 }
 
 function EmptyHint({ children }) {
+  return <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">{children}</p>;
+}
+
+function Toggle({ checked, onChange, disabled }) {
   return (
-    <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-400">
-      {children}
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      disabled={disabled}
+      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${checked ? 'bg-brand-600' : 'bg-slate-200'}`}
+    >
+      <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
+    </button>
+  );
+}
+
+function SubmissionTimes({ submission }) {
+  if (!submission?.createdAt) return null;
+  const submitted = timeAgo(submission.createdAt);
+  const updated   = submission.updatedAt && submission.updatedAt !== submission.createdAt
+    ? timeAgo(submission.updatedAt) : null;
+  return (
+    <p className="text-xs text-slate-400">
+      Submitted <span className="font-medium text-slate-500">{submitted}</span>
+      {updated && <><span className="mx-1.5">·</span>Updated <span className="font-medium text-slate-500">{updated}</span></>}
     </p>
+  );
+}
+
+const STATUS_STYLE = {
+  Submitted: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  Pending:   'bg-amber-50 text-amber-700 ring-amber-200',
+};
+
+function StatusBadge({ status }) {
+  if (!status) return null;
+  const cls = STATUS_STYLE[status] ?? 'bg-slate-100 text-slate-600 ring-slate-200';
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${cls}`}>{status}</span>;
+}
+
+// ─── Submission Settings section (interviewer only) ───────────────────────────
+
+function SettingsSection({ bookingId, submission, onUpdate, disabled }) {
+  const [enabled,          setEnabled]          = useState(submission?.isEnabled ?? false);
+  const [text,             setText]             = useState(submission?.instructionsText ?? '');
+  const [savingToggle,     setSavingToggle]     = useState(false);
+  const [savingText,       setSavingText]       = useState(false);
+  const [textSaved,        setTextSaved]        = useState(false);
+  const [uploadingFile,    setUploadingFile]    = useState(false);
+  const [removingFile,     setRemovingFile]     = useState(false);
+  const [viewingFile,      setViewingFile]      = useState(false);
+  const [err,              setErr]              = useState('');
+  const fileInputRef = useRef(null);
+
+  const hasFile = !!submission?.instructionS3Key;
+
+  // Keep local enabled in sync if parent reloads submission
+  useEffect(() => { setEnabled(submission?.isEnabled ?? false); }, [submission?.isEnabled]);
+
+  async function handleToggle() {
+    const next = !enabled;
+    setEnabled(next);
+    setSavingToggle(true); setErr('');
+    try {
+      const res = await submissionClient.patch(`/api/submissions/${bookingId}/settings`, { isEnabled: next });
+      onUpdate(res.data);
+    } catch (e) {
+      setEnabled(!next); // revert
+      setErr(getErrorMessage(e));
+    } finally {
+      setSavingToggle(false);
+    }
+  }
+
+  async function handleSaveText() {
+    setSavingText(true); setErr(''); setTextSaved(false);
+    try {
+      const res = await submissionClient.patch(`/api/submissions/${bookingId}/settings`, { instructionsText: text });
+      onUpdate(res.data);
+      setTextSaved(true);
+      setTimeout(() => setTextSaved(false), 2500);
+    } catch (e) {
+      setErr(getErrorMessage(e));
+    } finally {
+      setSavingText(false);
+    }
+  }
+
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploadingFile(true); setErr('');
+    try {
+      const urlRes = await submissionClient.post(`/api/submissions/${bookingId}/instructions/upload-url`, {
+        fileName: file.name,
+        fileType: file.type || 'application/octet-stream',
+      });
+
+      const s3Res = await fetch(urlRes.data.uploadUrl, {
+        method: 'PUT',
+        body:   file,
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+      });
+      if (!s3Res.ok) throw new Error(`S3 upload failed (${s3Res.status})`);
+
+      const refreshed = await submissionClient.get(`/api/submissions/${bookingId}`);
+      onUpdate(refreshed.data);
+    } catch (e) {
+      setErr(getErrorMessage(e));
+    } finally {
+      setUploadingFile(false);
+    }
+  }
+
+  async function handleRemoveFile() {
+    setRemovingFile(true); setErr('');
+    try {
+      const res = await submissionClient.delete(`/api/submissions/${bookingId}/instructions/file`);
+      onUpdate(res.data);
+    } catch (e) {
+      setErr(getErrorMessage(e));
+    } finally {
+      setRemovingFile(false);
+    }
+  }
+
+  async function handleViewFile() {
+    setViewingFile(true); setErr('');
+    try {
+      const res = await submissionClient.get(`/api/submissions/${bookingId}/instructions/file-url`);
+      window.open(res.data.viewUrl, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      setErr(getErrorMessage(e));
+    } finally {
+      setViewingFile(false);
+    }
+  }
+
+  const settingsIcon = (
+    <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+
+  return (
+    <SectionCard title="Submission Settings" icon={settingsIcon}>
+      <div className="space-y-5">
+
+        {/* Enable toggle */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-800">Enable submissions</p>
+            <p className="text-xs text-slate-500">Allow the candidate to submit a solution for this booking.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {savingToggle && <Spinner />}
+            <Toggle checked={enabled} onChange={handleToggle} disabled={disabled || savingToggle} />
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100" />
+
+        {/* Instructions text */}
+        <div className="space-y-2">
+          <label htmlFor="instructions-text" className="block text-sm font-medium text-slate-800">
+            Instructions <span className="font-normal text-slate-400">(optional)</span>
+          </label>
+          <textarea
+            id="instructions-text"
+            rows={4}
+            value={text}
+            onChange={(e) => { setText(e.target.value); setTextSaved(false); }}
+            placeholder="Describe what the candidate should complete before the interview…"
+            disabled={disabled || savingText}
+            className="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-slate-50"
+          />
+          <div className="flex items-center gap-3">
+            <ActionBtn
+              onClick={handleSaveText}
+              loading={savingText}
+              disabled={disabled}
+              variant="primary"
+            >
+              Save instructions
+            </ActionBtn>
+            {textSaved && (
+              <span className="flex items-center gap-1 text-xs font-medium text-emerald-600">
+                <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+                Saved
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t border-slate-100" />
+
+        {/* Instruction file */}
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-slate-800">
+            Instruction file <span className="font-normal text-slate-400">(optional)</span>
+          </p>
+          <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} disabled={disabled || uploadingFile} />
+
+          {hasFile ? (
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 rounded-lg border border-brand-100 bg-brand-50 px-4 py-3">
+                <svg className="h-5 w-5 shrink-0 text-brand-500" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+                </svg>
+                <p className="truncate text-sm font-medium text-brand-800">
+                  {submission.instructionS3Key.split('/').pop()}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <ActionBtn onClick={handleViewFile} loading={viewingFile} disabled={disabled || uploadingFile || removingFile}>View</ActionBtn>
+                <ActionBtn onClick={() => fileInputRef.current?.click()} loading={uploadingFile} disabled={disabled || viewingFile || removingFile}>Replace</ActionBtn>
+                <ActionBtn onClick={handleRemoveFile} loading={removingFile} disabled={disabled || uploadingFile || viewingFile} variant="danger">Remove</ActionBtn>
+              </div>
+            </div>
+          ) : (
+            <ActionBtn onClick={() => fileInputRef.current?.click()} loading={uploadingFile} disabled={disabled}>
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+              </svg>
+              Upload instruction file
+            </ActionBtn>
+          )}
+        </div>
+
+        <InlineError msg={err} />
+      </div>
+    </SectionCard>
+  );
+}
+
+// ─── Instructions section (candidate read-only view) ──────────────────────────
+
+function InstructionsSection({ bookingId, submission }) {
+  const [viewingFile, setViewingFile] = useState(false);
+  const [err,         setErr]         = useState('');
+
+  const hasText = !!submission?.instructionsText;
+  const hasFile = !!submission?.instructionS3Key;
+
+  if (!hasText && !hasFile) return null;
+
+  async function handleViewFile() {
+    setViewingFile(true); setErr('');
+    try {
+      const res = await submissionClient.get(`/api/submissions/${bookingId}/instructions/file-url`);
+      window.open(res.data.viewUrl, '_blank', 'noopener,noreferrer');
+    } catch (e) {
+      setErr(getErrorMessage(e));
+    } finally {
+      setViewingFile(false);
+    }
+  }
+
+  const instructionsIcon = (
+    <svg className="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+    </svg>
+  );
+
+  return (
+    <SectionCard title="Interview Instructions" icon={instructionsIcon}>
+      <div className="space-y-3">
+        {hasText && (
+          <p className="whitespace-pre-wrap rounded-lg bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700">
+            {submission.instructionsText}
+          </p>
+        )}
+        {hasFile && (
+          <div>
+            <ActionBtn onClick={handleViewFile} loading={viewingFile}>
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
+              </svg>
+              View instruction file ↗
+            </ActionBtn>
+            <InlineError msg={err} />
+          </div>
+        )}
+      </div>
+    </SectionCard>
   );
 }
 
@@ -134,27 +405,16 @@ function GithubSection({ bookingId, submission, onUpdate, disabled, readOnly }) 
   const [removing, setRemoving] = useState(false);
   const [err,      setErr]      = useState('');
 
-  function startEdit() {
-    setUrlInput(submission?.githubUrl ?? '');
-    setErr('');
-    setMode('edit');
-  }
+  function startEdit() { setUrlInput(submission?.githubUrl ?? ''); setErr(''); setMode('edit'); }
 
   async function handleSave() {
-    if (!isValidGithubUrl(urlInput)) {
-      setErr('Enter a valid GitHub URL (e.g. https://github.com/owner/repo).');
-      return;
-    }
+    if (!isValidGithubUrl(urlInput)) { setErr('Enter a valid GitHub URL (e.g. https://github.com/owner/repo).'); return; }
     setSaving(true); setErr('');
     try {
       const res = await submissionClient.put(`/api/submissions/${bookingId}/github`, { githubUrl: urlInput });
-      onUpdate(res.data);
-      setMode('view');
-    } catch (e) {
-      setErr(getErrorMessage(e));
-    } finally {
-      setSaving(false);
-    }
+      onUpdate(res.data); setMode('view');
+    } catch (e) { setErr(getErrorMessage(e)); }
+    finally { setSaving(false); }
   }
 
   async function handleRemove() {
@@ -162,11 +422,8 @@ function GithubSection({ bookingId, submission, onUpdate, disabled, readOnly }) 
     try {
       const res = await submissionClient.delete(`/api/submissions/${bookingId}/github`);
       onUpdate(res.data);
-    } catch (e) {
-      setErr(getErrorMessage(e));
-    } finally {
-      setRemoving(false);
-    }
+    } catch (e) { setErr(getErrorMessage(e)); }
+    finally { setRemoving(false); }
   }
 
   const githubIcon = (
@@ -177,22 +434,17 @@ function GithubSection({ bookingId, submission, onUpdate, disabled, readOnly }) 
 
   return (
     <SectionCard title="GitHub Repository" icon={githubIcon} badge={readOnly ? <ReadOnlyBadge /> : null}>
-      {/* Linked — show details */}
-      {hasLink && (mode === 'view' || readOnly) && (
+      {hasLink && (mode === 'view' || readOnly) ? (
         <div className="space-y-3">
           <div className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
             <p className="text-xs font-medium text-slate-500">Repository</p>
             <p className="mt-0.5 truncate text-sm font-medium text-slate-900">{submission.githubUrl}</p>
             {submission.githubCommitHash && (
-              <p className="mt-1 font-mono text-xs text-slate-400">
-                Commit: {submission.githubCommitHash.slice(0, 10)}
-              </p>
+              <p className="mt-1 font-mono text-xs text-slate-400">Commit: {submission.githubCommitHash.slice(0, 10)}</p>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <ActionBtn onClick={() => window.open(submission.githubUrl, '_blank', 'noopener,noreferrer')} disabled={disabled}>
-              Open ↗
-            </ActionBtn>
+            <ActionBtn onClick={() => window.open(submission.githubUrl, '_blank', 'noopener,noreferrer')} disabled={disabled}>Open ↗</ActionBtn>
             {submission.githubCommitHash && (
               <ActionBtn
                 onClick={() => window.open(`${submission.githubUrl}/tree/${submission.githubCommitHash}`, '_blank', 'noopener,noreferrer')}
@@ -211,19 +463,14 @@ function GithubSection({ bookingId, submission, onUpdate, disabled, readOnly }) 
           </div>
           <InlineError msg={err} />
         </div>
-      )}
-
-      {/* Edit / add form — candidate only */}
-      {!readOnly && (mode === 'edit' || !hasLink) && (
+      ) : !readOnly && (mode === 'edit' || !hasLink) ? (
         <div className="space-y-3">
           <div>
             <label htmlFor="github-url-input" className="mb-1.5 block text-xs font-medium text-slate-600">
               {hasLink ? 'Update repository URL' : 'Link a GitHub repository'}
             </label>
             <input
-              id="github-url-input"
-              type="url"
-              value={urlInput}
+              id="github-url-input" type="url" value={urlInput}
               onChange={(e) => { setUrlInput(e.target.value); setErr(''); }}
               placeholder="https://github.com/owner/repo"
               disabled={disabled || saving}
@@ -235,15 +482,10 @@ function GithubSection({ bookingId, submission, onUpdate, disabled, readOnly }) 
             <ActionBtn onClick={handleSave} loading={saving} disabled={disabled || !urlInput.trim()} variant="primary">
               {hasLink ? 'Update' : 'Link Repository'}
             </ActionBtn>
-            {hasLink && (
-              <ActionBtn onClick={() => { setMode('view'); setErr(''); }} disabled={saving}>Cancel</ActionBtn>
-            )}
+            {hasLink && <ActionBtn onClick={() => { setMode('view'); setErr(''); }} disabled={saving}>Cancel</ActionBtn>}
           </div>
         </div>
-      )}
-
-      {/* No link yet — read-only view (interviewer) */}
-      {readOnly && !hasLink && (
+      ) : (
         <EmptyHint>No GitHub repository linked by the candidate.</EmptyHint>
       )}
     </SectionCard>
@@ -256,39 +498,24 @@ function FileSection({ bookingId, submission, type, label, onUpdate, disabled, r
   const s3Key      = type === 'solution' ? submission?.solutionS3Key : submission?.evaluationS3Key;
   const hasFile    = !!s3Key;
   const fileInputRef = useRef(null);
-
   const [uploading, setUploading] = useState(false);
   const [viewing,   setViewing]   = useState(false);
   const [removing,  setRemoving]  = useState(false);
   const [err,       setErr]       = useState('');
 
   async function handleFileChange(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = '';
+    const file = e.target.files?.[0]; if (!file) return; e.target.value = '';
     setUploading(true); setErr('');
     try {
       const urlRes = await submissionClient.post('/api/submissions/upload-url', {
-        bookingId,
-        fileName:   file.name,
-        fileType:   file.type || 'application/octet-stream',
-        uploadType: type,
+        bookingId, fileName: file.name, fileType: file.type || 'application/octet-stream', uploadType: type,
       });
-
-      const s3Res = await fetch(urlRes.data.uploadUrl, {
-        method:  'PUT',
-        body:    file,
-        headers: { 'Content-Type': file.type || 'application/octet-stream' },
-      });
+      const s3Res = await fetch(urlRes.data.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type || 'application/octet-stream' } });
       if (!s3Res.ok) throw new Error(`S3 upload failed (${s3Res.status})`);
-
       const refreshed = await submissionClient.get(`/api/submissions/${bookingId}`);
       onUpdate(refreshed.data);
-    } catch (e) {
-      setErr(getErrorMessage(e));
-    } finally {
-      setUploading(false);
-    }
+    } catch (e) { setErr(getErrorMessage(e)); }
+    finally { setUploading(false); }
   }
 
   async function handleView() {
@@ -296,11 +523,8 @@ function FileSection({ bookingId, submission, type, label, onUpdate, disabled, r
     try {
       const res = await submissionClient.get(`/api/submissions/${bookingId}/file-url?type=${type}`);
       window.open(res.data.viewUrl, '_blank', 'noopener,noreferrer');
-    } catch (e) {
-      setErr(getErrorMessage(e));
-    } finally {
-      setViewing(false);
-    }
+    } catch (e) { setErr(getErrorMessage(e)); }
+    finally { setViewing(false); }
   }
 
   async function handleRemove() {
@@ -308,11 +532,8 @@ function FileSection({ bookingId, submission, type, label, onUpdate, disabled, r
     try {
       const res = await submissionClient.delete(`/api/submissions/${bookingId}/file?type=${type}`);
       onUpdate(res.data.submission);
-    } catch (e) {
-      setErr(getErrorMessage(e));
-    } finally {
-      setRemoving(false);
-    }
+    } catch (e) { setErr(getErrorMessage(e)); }
+    finally { setRemoving(false); }
   }
 
   const uploadIcon = (
@@ -324,7 +545,6 @@ function FileSection({ bookingId, submission, type, label, onUpdate, disabled, r
   return (
     <SectionCard title={label} icon={uploadIcon} badge={readOnly ? <ReadOnlyBadge /> : null}>
       <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileChange} disabled={disabled || uploading} />
-
       {hasFile ? (
         <div className="space-y-3">
           <div className="flex items-center gap-3 rounded-lg border border-emerald-100 bg-emerald-50 px-4 py-3">
@@ -337,26 +557,18 @@ function FileSection({ bookingId, submission, type, label, onUpdate, disabled, r
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <ActionBtn onClick={handleView} loading={viewing} disabled={disabled || uploading || removing}>
-              View
-            </ActionBtn>
+            <ActionBtn onClick={handleView} loading={viewing} disabled={disabled || uploading || removing}>View</ActionBtn>
             {!readOnly && (
               <>
-                <ActionBtn onClick={() => fileInputRef.current?.click()} loading={uploading} disabled={disabled || viewing || removing}>
-                  Replace
-                </ActionBtn>
-                <ActionBtn onClick={handleRemove} loading={removing} disabled={disabled || uploading || viewing} variant="danger">
-                  Remove
-                </ActionBtn>
+                <ActionBtn onClick={() => fileInputRef.current?.click()} loading={uploading} disabled={disabled || viewing || removing}>Replace</ActionBtn>
+                <ActionBtn onClick={handleRemove} loading={removing} disabled={disabled || uploading || viewing} variant="danger">Remove</ActionBtn>
               </>
             )}
           </div>
           <InlineError msg={err} />
         </div>
       ) : readOnly ? (
-        <EmptyHint>
-          {type === 'solution' ? 'No solution file uploaded by the candidate.' : 'No evaluation report uploaded yet.'}
-        </EmptyHint>
+        <EmptyHint>{type === 'solution' ? 'No solution file uploaded by the candidate.' : 'No evaluation report uploaded yet.'}</EmptyHint>
       ) : (
         <div className="space-y-3">
           <button
@@ -365,17 +577,16 @@ function FileSection({ bookingId, submission, type, label, onUpdate, disabled, r
             disabled={disabled || uploading}
             className="flex w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center transition hover:border-brand-400 hover:bg-brand-50 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {uploading ? (
-              <><Spinner size="lg" /><p className="mt-2 text-sm font-medium text-slate-600">Uploading…</p></>
-            ) : (
-              <>
-                <svg className="mb-2 h-8 w-8 text-slate-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                </svg>
-                <p className="text-sm font-semibold text-slate-700">Click to upload {label.toLowerCase()}</p>
-                <p className="mt-1 text-xs text-slate-400">.zip, .tar.gz, .pdf, or any file</p>
-              </>
-            )}
+            {uploading
+              ? <><Spinner size="lg" /><p className="mt-2 text-sm font-medium text-slate-600">Uploading…</p></>
+              : <>
+                  <svg className="mb-2 h-8 w-8 text-slate-400" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                  </svg>
+                  <p className="text-sm font-semibold text-slate-700">Click to upload {label.toLowerCase()}</p>
+                  <p className="mt-1 text-xs text-slate-400">.zip, .tar.gz, .pdf, or any file</p>
+                </>
+            }
           </button>
           <InlineError msg={err} />
         </div>
@@ -384,28 +595,9 @@ function FileSection({ bookingId, submission, type, label, onUpdate, disabled, r
   );
 }
 
-// ─── Status badge ─────────────────────────────────────────────────────────────
-
-const STATUS_STYLE = {
-  Submitted: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  Pending:   'bg-amber-50 text-amber-700 ring-amber-200',
-};
-
-function StatusBadge({ status }) {
-  if (!status) return null;
-  const cls = STATUS_STYLE[status] ?? 'bg-slate-100 text-slate-600 ring-slate-200';
-  return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${cls}`}>
-      {status}
-    </span>
-  );
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
-// profileType: 'Candidate' | 'Interviewer'
-//
-// Candidate  → edits GitHub + solution file; views evaluation (read-only)
-// Interviewer → views GitHub + solution (read-only); edits evaluation file
+// Candidate  → views instructions → submits GitHub + solution → views evaluation
+// Interviewer → configures settings/instructions → views submission → uploads evaluation
 
 export function SubmissionUpload({ bookingId, profileType }) {
   const isInterviewer = profileType === 'Interviewer';
@@ -438,18 +630,22 @@ export function SubmissionUpload({ bookingId, profileType }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId]);
 
+  // Candidate submission is only enabled when the interviewer explicitly enables it
+  const submissionEnabled = isInterviewer || (submission?.isEnabled === true);
+  const candidateBlocked  = !isInterviewer && !submissionEnabled;
+
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-sm font-semibold text-slate-800">
             {isInterviewer ? 'Submission Review & Evaluation' : 'Submission Workspace'}
           </h2>
           <p className="mt-0.5 text-xs text-slate-500">
             {isInterviewer
-              ? 'Review the candidate\'s submission and upload your evaluation report.'
-              : 'Submit your solution via GitHub or file upload. View interviewer feedback below.'}
+              ? 'Configure submission settings, review the candidate\'s work, and upload your evaluation.'
+              : 'Follow the instructions below and submit your solution before the interview.'}
           </p>
           {submission && <SubmissionTimes submission={submission} />}
         </div>
@@ -469,56 +665,107 @@ export function SubmissionUpload({ bookingId, profileType }) {
       {!loadingSubmission && loadError && (
         <div className="flex items-center justify-between rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           <span>{loadError}</span>
-          <button type="button" onClick={loadSubmission} className="ml-4 shrink-0 text-xs font-semibold underline hover:no-underline">
-            Retry
-          </button>
+          <button type="button" onClick={loadSubmission} className="ml-4 shrink-0 text-xs font-semibold underline hover:no-underline">Retry</button>
         </div>
       )}
 
-      {/* Workspace */}
       {!loadingSubmission && !loadError && (
         <div className="space-y-3">
-          {submission === null && !isInterviewer && (
-            <p className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-400">
-              No submission yet — use the sections below to add your solution.
-            </p>
+
+          {/* ── INTERVIEWER layout ── */}
+          {isInterviewer && (
+            <>
+              {/* Settings first — always shown so interviewer can enable even before any submission */}
+              <SettingsSection
+                bookingId={bookingId}
+                submission={submission}
+                onUpdate={setSubmission}
+                disabled={circuitOpen}
+              />
+
+              {submission === null && (
+                <p className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-400">
+                  No candidate submission yet.
+                </p>
+              )}
+
+              <GithubSection
+                bookingId={bookingId}
+                submission={submission}
+                onUpdate={setSubmission}
+                disabled={circuitOpen}
+                readOnly
+              />
+
+              <FileSection
+                bookingId={bookingId}
+                submission={submission}
+                type="solution"
+                label="Solution File"
+                onUpdate={setSubmission}
+                disabled={circuitOpen}
+                readOnly
+              />
+
+              <FileSection
+                bookingId={bookingId}
+                submission={submission}
+                type="evaluation"
+                label="Evaluation Report"
+                onUpdate={setSubmission}
+                disabled={circuitOpen}
+                readOnly={false}
+              />
+            </>
           )}
-          {submission === null && isInterviewer && (
-            <p className="rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-sm text-slate-400">
-              The candidate has not submitted anything yet.
-            </p>
+
+          {/* ── CANDIDATE layout ── */}
+          {!isInterviewer && (
+            <>
+              {/* Blocked states */}
+              {submission === null && (
+                <DisabledBanner message="Submission is not enabled yet. The interviewer will enable it before the interview." />
+              )}
+              {submission !== null && submission?.isEnabled === false && (
+                <DisabledBanner message="Submission is not enabled for this booking." />
+              )}
+
+              {/* Instructions (read-only) — shown when text or file exists */}
+              {submission && (
+                <InstructionsSection bookingId={bookingId} submission={submission} />
+              )}
+
+              {/* Candidate-editable sections — disabled when not enabled */}
+              <GithubSection
+                bookingId={bookingId}
+                submission={submission}
+                onUpdate={setSubmission}
+                disabled={circuitOpen || candidateBlocked}
+                readOnly={false}
+              />
+
+              <FileSection
+                bookingId={bookingId}
+                submission={submission}
+                type="solution"
+                label="Solution File"
+                onUpdate={setSubmission}
+                disabled={circuitOpen || candidateBlocked}
+                readOnly={false}
+              />
+
+              {/* Evaluation — candidate view-only */}
+              <FileSection
+                bookingId={bookingId}
+                submission={submission}
+                type="evaluation"
+                label="Evaluation Report"
+                onUpdate={setSubmission}
+                disabled={circuitOpen}
+                readOnly
+              />
+            </>
           )}
-
-          {/* ── Candidate: edits GitHub + solution; views evaluation ── */}
-          {/* ── Interviewer: views GitHub + solution; edits evaluation ── */}
-
-          <GithubSection
-            bookingId={bookingId}
-            submission={submission}
-            onUpdate={setSubmission}
-            disabled={circuitOpen}
-            readOnly={isInterviewer}
-          />
-
-          <FileSection
-            bookingId={bookingId}
-            submission={submission}
-            type="solution"
-            label="Solution File"
-            onUpdate={setSubmission}
-            disabled={circuitOpen}
-            readOnly={isInterviewer}
-          />
-
-          <FileSection
-            bookingId={bookingId}
-            submission={submission}
-            type="evaluation"
-            label="Evaluation Report"
-            onUpdate={setSubmission}
-            disabled={circuitOpen}
-            readOnly={!isInterviewer}  // candidate view-only, interviewer editable
-          />
         </div>
       )}
     </div>

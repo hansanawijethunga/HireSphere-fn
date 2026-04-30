@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useUnreadCount } from '../hooks/useUnreadCount';
 
 function StatCard({ label, value, detail }) {
   return (
@@ -15,7 +16,8 @@ const STATIC_STATS = [
   { label: 'Skill tracks', value: '4', detail: 'Frontend, backend, cloud, systems' },
 ];
 
-export function Dashboard({ email, profileType, signOut }) {
+export function Dashboard({ email, profileType, signOut, userId }) {
+  const unreadCount = useUnreadCount(userId);
   return (
     <div className="min-h-screen bg-slate-50">
       <nav className="border-b border-slate-200 bg-white">
@@ -59,6 +61,17 @@ export function Dashboard({ email, profileType, signOut }) {
               to="/bookings"
             >
               My Bookings
+            </Link>
+            <Link
+              className="relative rounded-md border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
+              to="/messages"
+            >
+              Messages
+              {unreadCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Link>
             <Link
               className="rounded-md border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
