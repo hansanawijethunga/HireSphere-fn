@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { FluentProvider, webLightTheme } from '@fluentui/react-components';
 import {
   Authenticator,
   SelectField,
@@ -141,19 +142,21 @@ const theme = {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ThemeProvider theme={theme}>
-      <BrowserRouter>
-        <Authenticator.Provider>
-          <Authenticator
-            components={components}
-            formFields={formFields}
-            loginMechanisms={['email']}
-            services={services}
-          >
-            {({ signOut, user }) => <App signOut={signOut} user={user} />}
-          </Authenticator>
-        </Authenticator.Provider>
-      </BrowserRouter>
-    </ThemeProvider>
+    <FluentProvider theme={webLightTheme}>
+      <ThemeProvider theme={theme}>
+        <BrowserRouter>
+          <Authenticator.Provider>
+            <Authenticator
+              components={components}
+              formFields={formFields}
+              loginMechanisms={['email']}
+              services={services}
+            >
+              {({ signOut, user }) => <App signOut={signOut} user={user} />}
+            </Authenticator>
+          </Authenticator.Provider>
+        </BrowserRouter>
+      </ThemeProvider>
+    </FluentProvider>
   </React.StrictMode>,
 );

@@ -1,165 +1,532 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { makeStyles, tokens } from '@fluentui/react-components';
+import {
+  Badge,
+  Button,
+  Card,
+  Spinner,
+  Text,
+  Title2,
+  Title3,
+  Subtitle1,
+  Subtitle2,
+  Body1,
+  Body2,
+  Caption1,
+} from '@fluentui/react-components';
+import {
+  CalendarLtrRegular,
+  CheckmarkCircleRegular,
+  ClockRegular,
+  ChatRegular,
+  StarRegular,
+  PeopleSearchRegular,
+  ArrowRightRegular,
+  AlertRegular,
+  VideoRegular,
+  CheckmarkRegular,
+  DismissRegular,
+} from '@fluentui/react-icons';
+import { format, isAfter, isBefore, addMinutes } from 'date-fns';
+import { fetchMyBookings, updateBookingStatus } from '../utils/bookingApi';
 import { useUnreadCount } from '../hooks/useUnreadCount';
 
-function StatCard({ label, value, detail }) {
+// ── Styles ────────────────────────────────────────────────────────────────────
+
+const useStyles = makeStyles({
+  page: {
+    padding: '32px',
+    maxWidth: '1200px',
+    margin: '0 auto',
+    width: '100%',
+  },
+  greeting: {
+    marginBottom: '28px',
+  },
+  statsRow: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: tokens.spacingHorizontalL,
+    marginBottom: '28px',
+    '@media (max-width: 1024px)': {
+      gridTemplateColumns: 'repeat(2, 1fr)',
+    },
+  },
+  statCard: {
+    padding: '20px 24px',
+    borderRadius: tokens.borderRadiusXLarge,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    border: 'none',
+  },
+  statIconWrap: {
+    width: '44px',
+    height: '44px',
+    borderRadius: tokens.borderRadiusLarge,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '22px',
+  },
+  contentGrid: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 360px',
+    gap: tokens.spacingHorizontalXL,
+    alignItems: 'start',
+    '@media (max-width: 900px)': {
+      gridTemplateColumns: '1fr',
+    },
+  },
+  sectionCard: {
+    borderRadius: tokens.borderRadiusXLarge,
+    overflow: 'hidden',
+  },
+  sectionHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '20px 24px 16px',
+    borderBottomWidth: '1px',
+    borderBottomStyle: 'solid',
+    borderBottomColor: tokens.colorNeutralStroke2,
+  },
+  sessionItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '16px',
+    padding: '16px 24px',
+    borderBottomWidth: '1px',
+    borderBottomStyle: 'solid',
+    borderBottomColor: tokens.colorNeutralStroke2,
+    ':last-child': { borderBottomWidth: '0' },
+  },
+  dateTile: {
+    width: '52px',
+    minWidth: '52px',
+    height: '60px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: tokens.borderRadiusMedium,
+    backgroundColor: tokens.colorNeutralBackground2,
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: tokens.colorNeutralStroke2,
+  },
+  pendingActions: {
+    display: 'flex',
+    gap: '8px',
+    marginTop: '8px',
+  },
+  ctaCard: {
+    background: `linear-gradient(135deg, ${tokens.colorBrandBackground}, #0050a0)`,
+    borderRadius: tokens.borderRadiusXLarge,
+    padding: '24px',
+    color: 'white',
+    marginBottom: '20px',
+  },
+  quickLinks: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+  },
+  quickLink: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px 16px',
+    borderRadius: tokens.borderRadiusMedium,
+    textDecoration: 'none',
+    color: tokens.colorNeutralForeground1,
+    backgroundColor: tokens.colorNeutralBackground1,
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: tokens.colorNeutralStroke2,
+    transition: 'all 0.12s',
+    ':hover': {
+      backgroundColor: tokens.colorNeutralBackground1Hover,
+      borderColor: tokens.colorBrandStroke1,
+    },
+  },
+  emptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '40px 24px',
+    gap: '8px',
+    color: tokens.colorNeutralForeground3,
+  },
+});
+
+// ── Stat card ─────────────────────────────────────────────────────────────────
+
+function StatCard({ label, value, icon, bg, iconColor, loading }) {
+  const styles = useStyles();
   return (
-    <article className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <p className="mt-3 text-2xl font-semibold text-slate-950">{value}</p>
-      <p className="mt-2 text-sm text-slate-600">{detail}</p>
-    </article>
+    <Card className={styles.statCard}>
+      <div className={styles.statIconWrap} style={{ backgroundColor: bg }}>
+        <span style={{ color: iconColor, fontSize: '22px', display: 'flex' }}>{icon}</span>
+      </div>
+      <div>
+        {loading ? (
+          <Spinner size="small" />
+        ) : (
+          <Title2 style={{ lineHeight: 1 }}>{value}</Title2>
+        )}
+        <Body2 style={{ color: tokens.colorNeutralForeground2, marginTop: '4px' }}>{label}</Body2>
+      </div>
+    </Card>
   );
 }
 
-const STATIC_STATS = [
-  { label: 'Simulations', value: '0', detail: 'Ready to schedule' },
-  { label: 'Skill tracks', value: '4', detail: 'Frontend, backend, cloud, systems' },
-];
+// ── Date tile ─────────────────────────────────────────────────────────────────
 
-export function Dashboard({ email, profileType, signOut, userId }) {
-  const unreadCount = useUnreadCount(userId);
+function DateTile({ iso }) {
+  const styles = useStyles();
+  const d = new Date(iso);
   return (
-    <div className="min-h-screen bg-slate-50">
-      <nav className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-          <div className="flex items-center gap-3">
-            <Link
-              className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 font-semibold text-white"
-              to="/dashboard"
-            >
-              H
-            </Link>
-            <div>
-              <p className="text-sm font-semibold text-slate-950">HireSphere</p>
-              <p className="text-xs text-slate-500">Cloud interview simulation</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center">
-            <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">
-              <span className="font-medium text-slate-950">{email}</span>
-              <span className="mx-2 text-slate-300">|</span>
-              <span>{profileType}</span>
-            </div>
-            {profileType === 'Interviewer' ? (
-              <Link
-                className="rounded-md bg-brand-600 px-4 py-2 font-medium text-white transition hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-                to="/availability"
-              >
-                My Availability
-              </Link>
-            ) : (
-              <Link
-                className="rounded-md bg-brand-600 px-4 py-2 font-medium text-white transition hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-                to="/discovery"
-              >
-                Find Interviewers
-              </Link>
-            )}
-            <Link
-              className="rounded-md border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-              to="/bookings"
-            >
-              My Bookings
-            </Link>
-            <Link
-              className="relative rounded-md border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-              to="/messages"
-            >
-              Messages
-              {unreadCount > 0 && (
-                <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-rose-500 text-[10px] font-bold text-white">
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </span>
-              )}
-            </Link>
-            <Link
-              className="rounded-md border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-              to="/profile/edit"
-            >
-              Edit Profile
-            </Link>
-            <button
-              className="rounded-md bg-slate-950 px-4 py-2 font-medium text-white transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-              onClick={signOut}
-              type="button"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-panel">
-          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-            <div>
-              <p className="text-sm font-medium text-brand-700">HireSphere Dashboard</p>
-              <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-                Technical interview workspace
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                Signed in as {email}. This authenticated shell is ready for interview
-                simulation workflows once the microservices backend is connected.
-              </p>
-            </div>
-            <span className="inline-flex w-fit items-center rounded-md border border-brand-100 bg-brand-50 px-3 py-1 text-sm font-medium text-brand-700">
-              {profileType}
-            </span>
-          </div>
-        </section>
-
-        {profileType === 'Interviewer' ? (
-          <section className="mt-6 rounded-lg border border-brand-100 bg-gradient-to-r from-brand-600 to-brand-700 p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-brand-100">Get discovered by candidates</p>
-                <h2 className="mt-1 text-xl font-bold text-white">Set your weekly availability</h2>
-                <p className="mt-1.5 text-sm text-brand-200">
-                  Define the hours you are open each week so candidates can book sessions with you.
-                </p>
-              </div>
-              <Link
-                className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 shadow transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-brand-600"
-                to="/availability"
-              >
-                My Availability
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              </Link>
-            </div>
-          </section>
-        ) : (
-          <section className="mt-6 rounded-lg border border-brand-100 bg-gradient-to-r from-brand-600 to-brand-700 p-6 shadow-sm">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-brand-100">Ready to practice?</p>
-                <h2 className="mt-1 text-xl font-bold text-white">Browse interviewers and book a session</h2>
-                <p className="mt-1.5 text-sm text-brand-200">
-                  Filter by domain, experience level, and price to find the right match.
-                </p>
-              </div>
-              <Link
-                className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-brand-700 shadow transition hover:bg-brand-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-brand-600"
-                to="/discovery"
-              >
-                Find Interviewers
-                <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              </Link>
-            </div>
-          </section>
-        )}
-
-        <section className="mt-6 grid gap-4 md:grid-cols-3">
-          {STATIC_STATS.map((stat) => (
-            <StatCard key={stat.label} {...stat} />
-          ))}
-          <StatCard detail="Used for role-based journeys" label="Profile" value={profileType} />
-        </section>
-      </main>
+    <div className={styles.dateTile}>
+      <Caption1 style={{ color: tokens.colorNeutralForeground2, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {format(d, 'MMM')}
+      </Caption1>
+      <Text weight="bold" size={500} style={{ lineHeight: 1 }}>{format(d, 'd')}</Text>
+      <Caption1 style={{ color: tokens.colorNeutralForeground2 }}>{format(d, 'EEE')}</Caption1>
     </div>
   );
+}
+
+// ── Status badge ──────────────────────────────────────────────────────────────
+
+function StatusBadge({ status }) {
+  const colorMap = { Confirmed: 'success', Pending: 'warning', Rejected: 'danger' };
+  return (
+    <Badge appearance="filled" color={colorMap[status] ?? 'informative'} size="small">
+      {status}
+    </Badge>
+  );
+}
+
+// ── Candidate Dashboard ───────────────────────────────────────────────────────
+
+function CandidateDashboard({ email, userId }) {
+  const styles = useStyles();
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const unread = useUnreadCount(userId);
+  const now = new Date();
+
+  const firstName = email?.split('@')[0] ?? 'there';
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  useEffect(() => {
+    fetchMyBookings('Candidate')
+      .then(setBookings)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const upcoming  = bookings.filter(b => b.status === 'Confirmed' && isAfter(new Date(b.scheduledAt), now))
+                            .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+  const pending   = bookings.filter(b => b.status === 'Pending');
+  const completed = bookings.filter(b => isBefore(addMinutes(new Date(b.scheduledAt), b.durationMinutes ?? 60), now));
+  const nextSession = upcoming[0];
+
+  return (
+    <div className={styles.page}>
+      {/* Greeting */}
+      <div className={styles.greeting}>
+        <Title2>{greeting}, {firstName}</Title2>
+        <Body1 style={{ color: tokens.colorNeutralForeground2, marginTop: '4px' }}>
+          {format(now, 'EEEE, MMMM d, yyyy')}
+        </Body1>
+      </div>
+
+      {/* Stats */}
+      <div className={styles.statsRow}>
+        <StatCard label="Upcoming sessions" value={upcoming.length} icon={<CalendarLtrRegular />}
+          bg="#EBF3FB" iconColor="#0078D4" loading={loading} />
+        <StatCard label="Sessions completed" value={completed.length} icon={<CheckmarkCircleRegular />}
+          bg="#EFF6EE" iconColor="#107C10" loading={loading} />
+        <StatCard label="Pending requests" value={pending.length} icon={<ClockRegular />}
+          bg="#FFF4CE" iconColor="#835B00" loading={loading} />
+        <StatCard label="Unread messages" value={unread} icon={<ChatRegular />}
+          bg="#F3E6F8" iconColor="#8764B8" loading={false} />
+      </div>
+
+      {/* Content grid */}
+      <div className={styles.contentGrid}>
+        {/* Left: upcoming sessions */}
+        <Card className={styles.sectionCard}>
+          <div className={styles.sectionHeader}>
+            <Subtitle2>Upcoming Sessions</Subtitle2>
+            <Button as={Link} to="/bookings" appearance="transparent" size="small"
+              icon={<ArrowRightRegular />} iconPosition="after">
+              View all
+            </Button>
+          </div>
+
+          {loading && (
+            <div className={styles.emptyState}><Spinner size="small" label="Loading…" /></div>
+          )}
+
+          {!loading && upcoming.length === 0 && (
+            <div className={styles.emptyState}>
+              <CalendarLtrRegular style={{ fontSize: '32px' }} />
+              <Body2>No upcoming sessions</Body2>
+              <Caption1>Book a session with an interviewer to get started</Caption1>
+            </div>
+          )}
+
+          {!loading && upcoming.slice(0, 5).map(b => (
+            <div key={b.id} className={styles.sessionItem}>
+              <DateTile iso={b.scheduledAt} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Body1 weight="semibold">{format(new Date(b.scheduledAt), 'h:mm a')}</Body1>
+                <Caption1 style={{ color: tokens.colorNeutralForeground2 }}>
+                  {b.durationMinutes} min session
+                </Caption1>
+              </div>
+              <StatusBadge status={b.status} />
+              <Button as={Link} to={`/room/${b.id}`} size="small" icon={<VideoRegular />}
+                appearance="outline">
+                Join
+              </Button>
+            </div>
+          ))}
+        </Card>
+
+        {/* Right: CTA + quick links */}
+        <div>
+          <div className={styles.ctaCard}>
+            <Text size={400} weight="semibold" style={{ color: 'rgba(255,255,255,0.85)' }} block>
+              Ready to practice?
+            </Text>
+            <Title3 style={{ color: 'white', marginTop: '4px', marginBottom: '16px' }}>
+              Find your next interviewer
+            </Title3>
+            <Button as={Link} to="/discovery" appearance="secondary"
+              icon={<PeopleSearchRegular />}
+              style={{ backgroundColor: 'white', color: tokens.colorBrandForeground1 }}>
+              Browse Interviewers
+            </Button>
+          </div>
+
+          <Card className={styles.sectionCard}>
+            <div className={styles.sectionHeader}>
+              <Subtitle2>Quick Links</Subtitle2>
+            </div>
+            <div style={{ padding: '16px' }}>
+              <div className={styles.quickLinks}>
+                {[
+                  { label: 'Find Interviewers', to: '/discovery', icon: <PeopleSearchRegular /> },
+                  { label: 'My Sessions',        to: '/bookings',  icon: <CalendarLtrRegular /> },
+                  { label: 'Messages',           to: '/messages',  icon: <ChatRegular /> },
+                  { label: 'Edit Profile',       to: '/profile/edit', icon: <AlertRegular /> },
+                ].map(({ label, to, icon }) => (
+                  <Link key={to} to={to} className={styles.quickLink}>
+                    <span style={{ color: tokens.colorBrandForeground1, fontSize: '18px', display: 'flex' }}>{icon}</span>
+                    <Body2 weight="semibold">{label}</Body2>
+                    <ArrowRightRegular style={{ marginLeft: 'auto', color: tokens.colorNeutralForeground3 }} />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Interviewer Dashboard ─────────────────────────────────────────────────────
+
+function InterviewerDashboard({ email, userId }) {
+  const styles = useStyles();
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(null);
+  const unread = useUnreadCount(userId);
+  const now = new Date();
+
+  const firstName = email?.split('@')[0] ?? 'there';
+  const hour = now.getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
+  useEffect(() => {
+    fetchMyBookings('Interviewer')
+      .then(setBookings)
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const pending   = bookings.filter(b => b.status === 'Pending');
+  const upcoming  = bookings.filter(b => b.status === 'Confirmed' && isAfter(new Date(b.scheduledAt), now))
+                            .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+  const completed = bookings.filter(b => isBefore(addMinutes(new Date(b.scheduledAt), b.durationMinutes ?? 60), now));
+
+  async function handleAction(bookingId, status) {
+    setActionLoading(bookingId + status);
+    try {
+      const updated = await updateBookingStatus(bookingId, status);
+      setBookings(prev => prev.map(b => b.id === updated.id ? updated : b));
+    } catch {}
+    finally { setActionLoading(null); }
+  }
+
+  return (
+    <div className={styles.page}>
+      {/* Greeting */}
+      <div className={styles.greeting}>
+        <Title2>{greeting}, {firstName}</Title2>
+        <Body1 style={{ color: tokens.colorNeutralForeground2, marginTop: '4px' }}>
+          {format(now, 'EEEE, MMMM d, yyyy')}
+        </Body1>
+      </div>
+
+      {/* Stats */}
+      <div className={styles.statsRow}>
+        <StatCard label="Pending requests" value={pending.length} icon={<AlertRegular />}
+          bg="#FFF4CE" iconColor="#835B00" loading={loading} />
+        <StatCard label="Upcoming sessions" value={upcoming.length} icon={<CalendarLtrRegular />}
+          bg="#EBF3FB" iconColor="#0078D4" loading={loading} />
+        <StatCard label="Sessions completed" value={completed.length} icon={<CheckmarkCircleRegular />}
+          bg="#EFF6EE" iconColor="#107C10" loading={loading} />
+        <StatCard label="Unread messages" value={unread} icon={<ChatRegular />}
+          bg="#F3E6F8" iconColor="#8764B8" loading={false} />
+      </div>
+
+      {/* Content grid */}
+      <div className={styles.contentGrid}>
+        {/* Left: pending requests */}
+        <Card className={styles.sectionCard}>
+          <div className={styles.sectionHeader}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Subtitle2>Pending Requests</Subtitle2>
+              {pending.length > 0 && (
+                <Badge appearance="filled" color="warning" size="small">{pending.length}</Badge>
+              )}
+            </div>
+            <Button as={Link} to="/bookings" appearance="transparent" size="small"
+              icon={<ArrowRightRegular />} iconPosition="after">
+              View all
+            </Button>
+          </div>
+
+          {loading && (
+            <div className={styles.emptyState}><Spinner size="small" label="Loading…" /></div>
+          )}
+
+          {!loading && pending.length === 0 && (
+            <div className={styles.emptyState}>
+              <CheckmarkCircleRegular style={{ fontSize: '32px' }} />
+              <Body2>No pending requests</Body2>
+              <Caption1>All caught up!</Caption1>
+            </div>
+          )}
+
+          {!loading && pending.map(b => (
+            <div key={b.id} className={styles.sessionItem}>
+              <DateTile iso={b.scheduledAt} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Body1 weight="semibold">{format(new Date(b.scheduledAt), 'h:mm a, MMM d')}</Body1>
+                <Caption1 style={{ color: tokens.colorNeutralForeground2 }}>
+                  {b.durationMinutes} min · {b.paymentStatus}
+                </Caption1>
+                <div className={styles.pendingActions}>
+                  <Button
+                    size="small" appearance="primary" icon={<CheckmarkRegular />}
+                    disabled={!!actionLoading}
+                    onClick={() => handleAction(b.id, 'Confirmed')}
+                  >
+                    {actionLoading === b.id + 'Confirmed' ? <Spinner size="tiny" /> : 'Confirm'}
+                  </Button>
+                  <Button
+                    size="small" appearance="outline" icon={<DismissRegular />}
+                    disabled={!!actionLoading}
+                    onClick={() => handleAction(b.id, 'Rejected')}
+                  >
+                    {actionLoading === b.id + 'Rejected' ? <Spinner size="tiny" /> : 'Reject'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Upcoming sessions section */}
+          {!loading && upcoming.length > 0 && (
+            <>
+              <div className={styles.sectionHeader} style={{ marginTop: 0 }}>
+                <Subtitle2>Upcoming Confirmed</Subtitle2>
+              </div>
+              {upcoming.slice(0, 3).map(b => (
+                <div key={b.id} className={styles.sessionItem}>
+                  <DateTile iso={b.scheduledAt} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Body1 weight="semibold">{format(new Date(b.scheduledAt), 'h:mm a, MMM d')}</Body1>
+                    <Caption1 style={{ color: tokens.colorNeutralForeground2 }}>
+                      {b.durationMinutes} min session
+                    </Caption1>
+                  </div>
+                  <StatusBadge status={b.status} />
+                </div>
+              ))}
+            </>
+          )}
+        </Card>
+
+        {/* Right: CTA + quick links */}
+        <div>
+          <div className={styles.ctaCard}>
+            <Text size={400} weight="semibold" style={{ color: 'rgba(255,255,255,0.85)' }} block>
+              Stay available
+            </Text>
+            <Title3 style={{ color: 'white', marginTop: '4px', marginBottom: '16px' }}>
+              Manage your schedule
+            </Title3>
+            <Button as={Link} to="/availability" appearance="secondary"
+              icon={<ClockRegular />}
+              style={{ backgroundColor: 'white', color: tokens.colorBrandForeground1 }}>
+              Set Availability
+            </Button>
+          </div>
+
+          <Card className={styles.sectionCard}>
+            <div className={styles.sectionHeader}>
+              <Subtitle2>Quick Links</Subtitle2>
+            </div>
+            <div style={{ padding: '16px' }}>
+              <div className={styles.quickLinks}>
+                {[
+                  { label: 'My Availability', to: '/availability', icon: <ClockRegular /> },
+                  { label: 'All Sessions',    to: '/bookings',     icon: <CalendarLtrRegular /> },
+                  { label: 'Messages',        to: '/messages',     icon: <ChatRegular /> },
+                  { label: 'Edit Profile',    to: '/profile/edit', icon: <AlertRegular /> },
+                ].map(({ label, to, icon }) => (
+                  <Link key={to} to={to} className={styles.quickLink}>
+                    <span style={{ color: tokens.colorBrandForeground1, fontSize: '18px', display: 'flex' }}>{icon}</span>
+                    <Body2 weight="semibold">{label}</Body2>
+                    <ArrowRightRegular style={{ marginLeft: 'auto', color: tokens.colorNeutralForeground3 }} />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+
+export function Dashboard({ email, profileType, userId }) {
+  if (profileType === 'Interviewer') {
+    return <InterviewerDashboard email={email} userId={userId} />;
+  }
+  return <CandidateDashboard email={email} userId={userId} />;
 }

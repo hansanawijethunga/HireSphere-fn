@@ -5,11 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:prod": "vite --mode production",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
     "@aws-amplify/ui-react": "^6.9.1",
+    "@fluentui/react-components": "^9.73.8",
+    "@fluentui/react-icons": "^2.0.325",
     "aws-amplify": "^6.15.0",
     "axios": "^1.15.2",
     "date-fns": "^4.1.0",

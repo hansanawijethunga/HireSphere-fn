@@ -62,6 +62,7 @@ export function connectMessagingSocket(token) {
   }
 
   _socket = io(BASE_URL, {
+    path: '/socket.io/messages',
     auth: { token },
     reconnection: true,
     reconnectionAttempts: 5,

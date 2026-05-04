@@ -1,235 +1,394 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { fetchMyBookings } from '../utils/bookingApi';
-import { BookingCard } from '../components/BookingCard';
+import { makeStyles, tokens } from '@fluentui/react-components';
+import {
+  Badge,
+  Button,
+  Card,
+  Spinner,
+  Tab,
+  TabList,
+  Text,
+  Title2,
+  Subtitle2,
+  Body1,
+  Body2,
+  Caption1,
+} from '@fluentui/react-components';
+import {
+  CalendarLtrRegular,
+  VideoRegular,
+  CheckmarkRegular,
+  DismissRegular,
+  ArrowSyncRegular,
+  PeopleSearchRegular,
+  ClockRegular,
+} from '@fluentui/react-icons';
+import { format, isAfter, addMinutes, isBefore, subMinutes } from 'date-fns';
+import { fetchMyBookings, updateBookingStatus } from '../utils/bookingApi';
+import { SubmissionUpload } from '../components/SubmissionUpload';
 
-// ─── Skeleton loader ──────────────────────────────────────────────────────────
+const useStyles = makeStyles({
+  page: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    overflow: 'hidden',
+  },
+  header: {
+    backgroundColor: tokens.colorNeutralBackground1,
+    borderBottomWidth: '1px',
+    borderBottomStyle: 'solid',
+    borderBottomColor: tokens.colorNeutralStroke2,
+    padding: '24px 32px',
+    flexShrink: 0,
+  },
+  tabBar: {
+    backgroundColor: tokens.colorNeutralBackground1,
+    borderBottomWidth: '1px',
+    borderBottomStyle: 'solid',
+    borderBottomColor: tokens.colorNeutralStroke2,
+    padding: '0 32px',
+    flexShrink: 0,
+  },
+  scrollArea: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '28px 32px',
+  },
+  list: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px',
+    maxWidth: '860px',
+  },
+  bookingCard: {
+    borderRadius: tokens.borderRadiusXLarge,
+    overflow: 'hidden',
+  },
+  cardContent: {
+    padding: '20px 24px',
+  },
+  topRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '18px',
+    justifyContent: 'space-between',
+  },
+  dateTile: {
+    width: '56px',
+    minWidth: '56px',
+    height: '64px',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: tokens.borderRadiusMedium,
+    backgroundColor: tokens.colorNeutralBackground2,
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: tokens.colorNeutralStroke2,
+  },
+  infoCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  actions: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+    gap: '8px',
+    flexShrink: 0,
+  },
+  actionRow: {
+    display: 'flex',
+    gap: '8px',
+  },
+  submissionSection: {
+    borderTopWidth: '1px',
+    borderTopStyle: 'solid',
+    borderTopColor: tokens.colorNeutralStroke2,
+    padding: '16px 24px',
+    marginTop: '0',
+  },
+  emptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '80px 32px',
+    gap: '12px',
+    color: tokens.colorNeutralForeground3,
+  },
+});
 
-function SkeletonCard() {
+const STATUS_COLOR = {
+  Confirmed: 'success',
+  Pending:   'warning',
+  Rejected:  'danger',
+};
+
+function DateTile({ iso }) {
+  const styles = useStyles();
+  const d = new Date(iso);
   return (
-    <div className="animate-pulse rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start gap-4">
-        <div className="h-16 w-14 rounded-xl bg-slate-200" />
-        <div className="flex-1 space-y-2.5 pt-1">
-          <div className="flex items-center gap-2">
-            <div className="h-4 w-24 rounded bg-slate-200" />
-            <div className="h-5 w-20 rounded-full bg-slate-200" />
-          </div>
-          <div className="h-3 w-44 rounded bg-slate-200" />
-          <div className="h-3 w-20 rounded bg-slate-200" />
-        </div>
-      </div>
+    <div className={styles.dateTile}>
+      <Caption1 style={{ color: tokens.colorNeutralForeground2, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {format(d, 'MMM')}
+      </Caption1>
+      <Text weight="bold" size={500} style={{ lineHeight: 1 }}>{format(d, 'd')}</Text>
+      <Caption1 style={{ color: tokens.colorNeutralForeground2 }}>{format(d, 'EEE')}</Caption1>
     </div>
   );
 }
 
-// ─── Section (Upcoming / Past) ────────────────────────────────────────────────
+function JoinButton({ booking }) {
+  const now = new Date();
+  const start = new Date(booking.scheduledAt);
+  const end = addMinutes(start, booking.durationMinutes ?? 60);
+  const windowOpen = subMinutes(start, 5);
 
-function BookingSection({ title, count, bookings, isInterviewer, emptyLabel, onStatusUpdate }) {
+  if (booking.status !== 'Confirmed') return null;
+  if (isAfter(now, end)) {
+    return (
+      <Badge appearance="outline" color="informative" size="medium">Completed</Badge>
+    );
+  }
+  if (isBefore(now, windowOpen)) {
+    return (
+      <Badge appearance="outline" size="medium" icon={<ClockRegular />}>
+        Starts {format(start, 'h:mm a')}
+      </Badge>
+    );
+  }
   return (
-    <div>
-      <div className="mb-3 flex items-center gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">{title}</h2>
-        <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-          {count}
-        </span>
+    <Button as={Link} to={`/room/${booking.id}`} state={{ booking }}
+      appearance="primary" icon={<VideoRegular />} size="small">
+      Join Now
+    </Button>
+  );
+}
+
+function BookingItem({ booking, isInterviewer, onStatusUpdate }) {
+  const styles = useStyles();
+  const [actLoading, setActLoading] = useState(null);
+  const [actError,   setActError]   = useState('');
+  const [showSubmit, setShowSubmit] = useState(false);
+
+  const canAct    = isInterviewer && booking.status === 'Pending';
+  const canSubmit = booking.status === 'Confirmed';
+
+  async function handleAction(status) {
+    setActLoading(status);
+    setActError('');
+    try {
+      const updated = await updateBookingStatus(booking.id, status);
+      onStatusUpdate(updated);
+    } catch (e) {
+      setActError(e.message || 'Action failed.');
+    } finally { setActLoading(null); }
+  }
+
+  return (
+    <Card className={styles.bookingCard}>
+      <div className={styles.cardContent}>
+        <div className={styles.topRow}>
+          <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
+            <DateTile iso={booking.scheduledAt} />
+            <div className={styles.infoCol}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                <Body1 weight="semibold">{format(new Date(booking.scheduledAt), 'h:mm a')}</Body1>
+                <Badge appearance="filled" color={STATUS_COLOR[booking.status] ?? 'informative'} size="small">
+                  {booking.status}
+                </Badge>
+              </div>
+              <Caption1 style={{ color: tokens.colorNeutralForeground2 }}>
+                {format(new Date(booking.scheduledAt), 'EEEE, MMMM d, yyyy')}
+              </Caption1>
+              <Caption1 style={{ color: tokens.colorNeutralForeground2, display: 'block', marginTop: '2px' }}>
+                {booking.durationMinutes} min ·{' '}
+                {booking.status === 'Rejected'
+                  ? <span style={{ color: '#107C10' }}>Refunded</span>
+                  : <span>Payment: <strong>{booking.paymentStatus}</strong></span>
+                }
+              </Caption1>
+              <Caption1 style={{ color: tokens.colorNeutralForeground4, fontFamily: 'monospace', marginTop: '4px', display: 'block' }}>
+                #{booking.id.slice(0, 8).toUpperCase()}
+              </Caption1>
+            </div>
+          </div>
+
+          <div className={styles.actions}>
+            <JoinButton booking={booking} />
+
+            {canAct && (
+              <div className={styles.actionRow}>
+                <Button size="small" appearance="primary" icon={<CheckmarkRegular />}
+                  disabled={!!actLoading} onClick={() => handleAction('Confirmed')}>
+                  {actLoading === 'Confirmed' ? <Spinner size="tiny" /> : 'Confirm'}
+                </Button>
+                <Button size="small" appearance="outline" icon={<DismissRegular />}
+                  disabled={!!actLoading} onClick={() => handleAction('Rejected')}>
+                  {actLoading === 'Rejected' ? <Spinner size="tiny" /> : 'Reject'}
+                </Button>
+              </div>
+            )}
+
+            {actError && (
+              <Caption1 style={{ color: '#750B1C' }} role="alert">{actError}</Caption1>
+            )}
+
+            {/* Message link */}
+            {(isInterviewer ? booking.candidateId : booking.interviewerId) && (
+              <Button as={Link} size="small" appearance="subtle"
+                to={`/messages/${isInterviewer ? booking.candidateId : booking.interviewerId}`}>
+                Message
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
 
-      {bookings.length === 0 ? (
-        <p className="text-sm text-slate-400">{emptyLabel}</p>
-      ) : (
-        <div className="space-y-3">
-          {bookings.map((b) => (
-            <BookingCard
-              key={b.id}
-              booking={b}
-              isInterviewer={isInterviewer}
-              onStatusUpdate={onStatusUpdate}
-            />
-          ))}
+      {canSubmit && (
+        <div className={styles.submissionSection}>
+          <Button appearance="transparent" size="small"
+            onClick={() => setShowSubmit(v => !v)}>
+            {showSubmit ? 'Hide' : isInterviewer ? 'View & evaluate submission' : 'Submit your solution'}
+          </Button>
+          {showSubmit && (
+            <div style={{ marginTop: '12px' }}>
+              <SubmissionUpload bookingId={booking.id}
+                profileType={isInterviewer ? 'Interviewer' : 'Candidate'} />
+            </div>
+          )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
-export function Bookings({ email, profileType, signOut }) {
-  const [bookings, setBookings] = useState([]);
-  const [loadState, setLoadState] = useState('loading');
-  const [loadError, setLoadError] = useState('');
-
+export function Bookings({ email, profileType }) {
+  const styles = useStyles();
+  const [bookings,   setBookings]   = useState([]);
+  const [loadState,  setLoadState]  = useState('loading');
+  const [loadError,  setLoadError]  = useState('');
+  const [activeTab,  setActiveTab]  = useState('upcoming');
   const isInterviewer = profileType === 'Interviewer';
+  const now = new Date();
   const userTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   useEffect(() => {
     if (!profileType) return;
     setLoadState('loading');
     fetchMyBookings(profileType)
-      .then((data) => {
-        setBookings(data);
-        setLoadState('ready');
-      })
-      .catch((err) => {
-        setLoadError(err.message || 'Failed to load bookings.');
-        setLoadState('error');
-      });
+      .then(data  => { setBookings(data); setLoadState('ready'); })
+      .catch(err  => { setLoadError(err.message || 'Failed to load.'); setLoadState('error'); });
   }, [profileType]);
 
-  function handleStatusUpdate(updatedBooking) {
-    setBookings((prev) => prev.map((b) => (b.id === updatedBooking.id ? updatedBooking : b)));
+  function onStatusUpdate(updated) {
+    setBookings(prev => prev.map(b => b.id === updated.id ? updated : b));
   }
 
-  const now = new Date();
-  const upcoming = bookings
-    .filter((b) => new Date(b.scheduledAt) > now)
-    .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
-  const past = bookings
-    .filter((b) => new Date(b.scheduledAt) <= now)
-    .sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt));
-
-  const pendingCount = bookings.filter((b) => b.status === 'Pending').length;
+  const upcoming = bookings.filter(b => isAfter(new Date(b.scheduledAt), now))
+                           .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+  const past     = bookings.filter(b => !isAfter(new Date(b.scheduledAt), now))
+                           .sort((a, b) => new Date(b.scheduledAt) - new Date(a.scheduledAt));
+  const pendingCount = bookings.filter(b => b.status === 'Pending').length;
+  const displayList  = activeTab === 'upcoming' ? upcoming : past;
 
   return (
-    <div className="min-h-screen bg-slate-50">
-
-      {/* ── Nav ── */}
-      <nav className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex w-full max-w-4xl items-center justify-between px-4 py-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <Link
-              to="/dashboard"
-              className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 font-semibold text-white"
-            >
-              H
-            </Link>
-            <div>
-              <p className="text-sm font-semibold text-slate-950">HireSphere</p>
-              <p className="text-xs text-slate-500">My Bookings</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {email && <span className="hidden text-sm text-slate-600 sm:block">{email}</span>}
-            <Link
-              to="/dashboard"
-              className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-            >
-              Dashboard
-            </Link>
-            {signOut && (
-              <button
-                type="button"
-                onClick={signOut}
-                className="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-              >
-                Sign Out
-              </button>
-            )}
-          </div>
-        </div>
-      </nav>
-
-      <div className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
-
-        {/* ── Page header ── */}
-        <div className="mb-1 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <div className={styles.page}>
+      {/* Header */}
+      <div className={styles.header}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-950">My Bookings</h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <Title2>Sessions</Title2>
+            <Body1 style={{ color: tokens.colorNeutralForeground2, marginTop: '4px' }}>
               {isInterviewer
-                ? 'Sessions booked with you. Confirm or reject pending requests.'
+                ? 'Manage booking requests and upcoming sessions.'
                 : 'Your scheduled interview sessions.'}
-            </p>
+            </Body1>
           </div>
-          {/* Pending badge for interviewers */}
-          {isInterviewer && loadState === 'ready' && pendingCount > 0 && (
-            <span className="inline-flex items-center self-start rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 ring-1 ring-inset ring-amber-200">
-              {pendingCount} pending action{pendingCount !== 1 ? 's' : ''}
-            </span>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {isInterviewer && pendingCount > 0 && (
+              <Badge appearance="filled" color="warning" size="large">
+                {pendingCount} pending action{pendingCount !== 1 ? 's' : ''}
+              </Badge>
+            )}
+            <Caption1 style={{ color: tokens.colorNeutralForeground3 }}>
+              Times in {userTz}
+            </Caption1>
+          </div>
         </div>
+      </div>
 
-        <p className="mb-8 text-xs text-slate-400">All times shown in {userTz}</p>
+      {/* Tabs */}
+      <div className={styles.tabBar}>
+        <TabList selectedValue={activeTab} onTabSelect={(_, d) => setActiveTab(d.value)}>
+          <Tab value="upcoming">
+            Upcoming
+            {upcoming.length > 0 && (
+              <Badge appearance="filled" color="brand" size="small" style={{ marginLeft: '6px' }}>
+                {upcoming.length}
+              </Badge>
+            )}
+          </Tab>
+          <Tab value="past">
+            Past
+            {past.length > 0 && (
+              <Badge appearance="outline" size="small" style={{ marginLeft: '6px' }}>
+                {past.length}
+              </Badge>
+            )}
+          </Tab>
+        </TabList>
+      </div>
 
-        {/* ── Loading ── */}
+      {/* Content */}
+      <div className={styles.scrollArea}>
         {loadState === 'loading' && (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '60px' }}>
+            <Spinner size="large" label="Loading sessions…" />
           </div>
         )}
 
-        {/* ── Error ── */}
         {loadState === 'error' && (
-          <div
-            role="alert"
-            className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700"
-          >
+          <div style={{ padding: '16px', borderRadius: tokens.borderRadiusMedium,
+            backgroundColor: '#FDE7E9', color: '#750B1C', maxWidth: '600px' }}>
             {loadError}
           </div>
         )}
 
-        {/* ── Empty state ── */}
         {loadState === 'ready' && bookings.length === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white py-20 text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-slate-100">
-              <svg
-                className="h-7 w-7 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5"
-                />
-              </svg>
-            </div>
-            <p className="text-base font-semibold text-slate-800">No bookings yet</p>
-            <p className="mt-1.5 max-w-xs text-sm text-slate-500">
+          <div className={styles.emptyState}>
+            <CalendarLtrRegular style={{ fontSize: '48px' }} />
+            <Subtitle2>No sessions yet</Subtitle2>
+            <Body2 style={{ textAlign: 'center', maxWidth: '320px' }}>
               {isInterviewer
-                ? 'Once candidates book sessions with you, they will appear here.'
+                ? 'Set your availability so candidates can book sessions with you.'
                 : 'Book a session with an interviewer to get started.'}
-            </p>
+            </Body2>
             {!isInterviewer && (
-              <Link
-                to="/discovery"
-                className="mt-5 rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
-              >
+              <Button as={Link} to="/discovery" appearance="primary" icon={<PeopleSearchRegular />}>
                 Find Interviewers
-              </Link>
+              </Button>
             )}
           </div>
         )}
 
-        {/* ── Upcoming + Past sections ── */}
-        {loadState === 'ready' && bookings.length > 0 && (
-          <div className="space-y-10">
-            <BookingSection
-              title="Upcoming"
-              count={upcoming.length}
-              bookings={upcoming}
-              isInterviewer={isInterviewer}
-              emptyLabel="No upcoming sessions."
-              onStatusUpdate={handleStatusUpdate}
-            />
-            {past.length > 0 && (
-              <>
-                <div className="border-t border-slate-200" />
-                <BookingSection
-                  title="Past"
-                  count={past.length}
-                  bookings={past}
-                  isInterviewer={isInterviewer}
-                  emptyLabel="No past sessions."
-                  onStatusUpdate={handleStatusUpdate}
-                />
-              </>
-            )}
+        {loadState === 'ready' && bookings.length > 0 && displayList.length === 0 && (
+          <div className={styles.emptyState}>
+            <CalendarLtrRegular style={{ fontSize: '36px' }} />
+            <Body2>No {activeTab} sessions</Body2>
+          </div>
+        )}
+
+        {loadState === 'ready' && displayList.length > 0 && (
+          <div className={styles.list}>
+            {displayList.map(b => (
+              <BookingItem key={b.id} booking={b} isInterviewer={isInterviewer}
+                onStatusUpdate={onStatusUpdate} />
+            ))}
           </div>
         )}
       </div>

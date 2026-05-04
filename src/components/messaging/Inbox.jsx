@@ -1,225 +1,279 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { makeStyles, tokens } from '@fluentui/react-components';
+import {
+  Avatar,
+  Button,
+  Spinner,
+  Text,
+  Title2,
+  Subtitle2,
+  Body1,
+  Body2,
+  Caption1,
+} from '@fluentui/react-components';
+import {
+  ChatRegular,
+  ArrowSyncRegular,
+} from '@fluentui/react-icons';
 import messagingClient from '../../api/messagingClient';
 import { getUserByCognitoSub } from '../../utils/searchApi';
 
-// ── Timestamp ─────────────────────────────────────────────────────────────────
+const useStyles = makeStyles({
+  page: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    overflow: 'hidden',
+  },
+  header: {
+    backgroundColor: tokens.colorNeutralBackground1,
+    borderBottomWidth: '1px',
+    borderBottomStyle: 'solid',
+    borderBottomColor: tokens.colorNeutralStroke2,
+    padding: '24px 32px',
+    flexShrink: 0,
+  },
+  scrollArea: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '20px 32px',
+  },
+  list: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    maxWidth: '760px',
+  },
+  item: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+    padding: '14px 18px',
+    borderRadius: tokens.borderRadiusXLarge,
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: tokens.colorNeutralStroke2,
+    backgroundColor: tokens.colorNeutralBackground1,
+    cursor: 'pointer',
+    transition: 'all 0.12s',
+    ':hover': {
+      borderColor: tokens.colorBrandStroke1,
+      backgroundColor: tokens.colorNeutralBackground1Hover,
+    },
+  },
+  itemUnread: {
+    borderColor: tokens.colorBrandStroke2,
+    backgroundColor: tokens.colorBrandBackground2,
+    ':hover': {
+      borderColor: tokens.colorBrandStroke1,
+      backgroundColor: tokens.colorBrandBackground2Hover,
+    },
+  },
+  avatarWrap: {
+    position: 'relative',
+    flexShrink: 0,
+  },
+  unreadDot: {
+    position: 'absolute',
+    top: '0px',
+    right: '0px',
+    width: '10px',
+    height: '10px',
+    borderRadius: '50%',
+    backgroundColor: tokens.colorBrandBackground,
+    borderWidth: '2px',
+    borderStyle: 'solid',
+    borderColor: tokens.colorNeutralBackground1,
+  },
+  itemContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  itemMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '8px',
+  },
+  emptyState: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '80px 32px',
+    gap: '12px',
+    color: tokens.colorNeutralForeground3,
+  },
+  skeleton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '14px',
+    padding: '14px 18px',
+    borderRadius: tokens.borderRadiusXLarge,
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: tokens.colorNeutralStroke2,
+    backgroundColor: tokens.colorNeutralBackground1,
+  },
+});
 
-function formatInboxTime(ms) {
+function formatTime(ms) {
   if (!ms) return '';
   const date = new Date(ms);
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const startOfYesterday = new Date(startOfToday - 86_400_000);
-
-  if (date >= startOfToday) {
-    return new Intl.DateTimeFormat(undefined, {
-      hour: 'numeric', minute: '2-digit', hour12: true,
-    }).format(date);
+  const now  = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (date >= today) {
+    return new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit', hour12: true }).format(date);
   }
-  if (date >= startOfYesterday) return 'Yesterday';
-  const diffDays = Math.floor((now - date) / 86_400_000);
-  if (diffDays < 7) {
-    return new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date);
-  }
+  const yesterday = new Date(today - 86400000);
+  if (date >= yesterday) return 'Yesterday';
+  const diff = Math.floor((now - date) / 86400000);
+  if (diff < 7) return new Intl.DateTimeFormat(undefined, { weekday: 'short' }).format(date);
   return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(date);
 }
 
-// ── Nav ───────────────────────────────────────────────────────────────────────
-
-function Nav({ email, profileType, signOut }) {
+function SkeletonItem() {
+  const styles = useStyles();
   return (
-    <nav className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
-        <div className="flex items-center gap-3">
-          <Link
-            to="/dashboard"
-            className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 font-semibold text-white"
-          >
-            H
-          </Link>
-          <div>
-            <p className="text-sm font-semibold text-slate-950">HireSphere</p>
-            <p className="text-xs text-slate-500">Cloud interview simulation</p>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center">
-          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">
-            <span className="font-medium text-slate-950">{email}</span>
-            <span className="mx-2 text-slate-300">|</span>
-            <span>{profileType}</span>
-          </div>
-          <Link
-            to="/bookings"
-            className="rounded-md border border-slate-200 bg-white px-4 py-2 font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            My Bookings
-          </Link>
-          <Link
-            to="/messages"
-            className="rounded-md bg-brand-600 px-4 py-2 font-medium text-white transition hover:bg-brand-500"
-          >
-            Messages
-          </Link>
-          <button
-            type="button"
-            onClick={signOut}
-            className="rounded-md bg-slate-950 px-4 py-2 font-medium text-white transition hover:bg-slate-800"
-          >
-            Sign Out
-          </button>
-        </div>
+    <div className={styles.skeleton}>
+      <div style={{ width: 40, height: 40, borderRadius: '50%', background: tokens.colorNeutralBackground3 }} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ height: '13px', width: '40%', borderRadius: '6px', background: tokens.colorNeutralBackground3 }} />
+        <div style={{ height: '11px', width: '70%', borderRadius: '6px', background: tokens.colorNeutralBackground3 }} />
       </div>
-    </nav>
-  );
-}
-
-// ── Skeleton ──────────────────────────────────────────────────────────────────
-
-function ConversationSkeleton() {
-  return (
-    <div className="flex animate-pulse items-center gap-4 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-      <div className="h-11 w-11 shrink-0 rounded-full bg-slate-200" />
-      <div className="flex-1 space-y-2">
-        <div className="h-3.5 w-36 rounded bg-slate-200" />
-        <div className="h-3 w-52 rounded bg-slate-200" />
-      </div>
-      <div className="h-3 w-10 shrink-0 rounded bg-slate-200" />
+      <div style={{ height: '11px', width: '40px', borderRadius: '6px', background: tokens.colorNeutralBackground3 }} />
     </div>
   );
 }
 
-// ── Conversation row ──────────────────────────────────────────────────────────
-
 function ConversationItem({ message, userId, displayNames, onClick }) {
-  const otherId = message.senderId === userId ? message.receiverId : message.senderId;
+  const styles = useStyles();
+  const otherId    = message.senderId === userId ? message.receiverId : message.senderId;
   const isOutgoing = message.senderId === userId;
-  const isUnread = !isOutgoing && !message.readAt;
-  const snippet = isOutgoing ? `You: ${message.content}` : message.content;
-  const name = displayNames[message.senderId] || message.senderId;
-  const initials = name.slice(0, 2).toUpperCase();
+  const isUnread   = !isOutgoing && !message.readAt;
+  const snippet    = isOutgoing ? `You: ${message.content}` : message.content;
+  const name       = displayNames[message.senderId] || message.senderId;
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => onClick(otherId, name)}
-      className={`flex w-full items-center gap-4 rounded-xl border px-4 py-4 text-left shadow-sm transition hover:border-brand-300 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-1 ${
-        isUnread ? 'border-brand-200 bg-brand-50' : 'border-slate-200 bg-white'
-      }`}
+      onKeyDown={e => e.key === 'Enter' && onClick(otherId, name)}
+      className={`${styles.item} ${isUnread ? styles.itemUnread : ''}`}
     >
-      <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">
-        {initials}
-        {isUnread && (
-          <span className="absolute right-0 top-0 h-3 w-3 rounded-full border-2 border-white bg-brand-600" />
-        )}
+      <div className={styles.avatarWrap}>
+        <Avatar name={name} size={40} color={isUnread ? 'brand' : 'neutral'} />
+        {isUnread && <div className={styles.unreadDot} />}
       </div>
-      <div className="min-w-0 flex-1">
-        <p className={`truncate text-sm ${isUnread ? 'font-bold text-slate-900' : 'font-semibold text-slate-900'}`}>
-          {name}
-        </p>
-        <p className={`mt-0.5 truncate text-xs ${isUnread ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
+      <div className={styles.itemContent}>
+        <div className={styles.itemMeta}>
+          <Body1 weight={isUnread ? 'bold' : 'semibold'}
+            style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {name}
+          </Body1>
+          <Caption1 style={{ color: tokens.colorNeutralForeground3, flexShrink: 0 }}>
+            {formatTime(message.timestamp)}
+          </Caption1>
+        </div>
+        <Caption1
+          block
+          style={{
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            color: isUnread ? tokens.colorNeutralForeground1 : tokens.colorNeutralForeground2,
+            fontWeight: isUnread ? tokens.fontWeightSemibold : tokens.fontWeightRegular,
+            marginTop: '2px',
+          }}
+        >
           {snippet}
-        </p>
+        </Caption1>
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-1.5">
-        <p className="text-xs text-slate-400">{formatInboxTime(message.timestamp)}</p>
-        {isUnread && (
-          <span className="h-2 w-2 rounded-full bg-brand-600" />
-        )}
-      </div>
-    </button>
+    </div>
   );
 }
 
-// ── Inbox ─────────────────────────────────────────────────────────────────────
-
-export function Inbox({ email, profileType, signOut, userId }) {
-  const navigate = useNavigate();
+export function Inbox({ userId }) {
+  const styles    = useStyles();
+  const navigate  = useNavigate();
   const [conversations, setConversations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [displayNames, setDisplayNames] = useState({});
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState('');
+  const [displayNames,  setDisplayNames]  = useState({});
 
   async function load() {
     setLoading(true);
     setError('');
     try {
-      const res = await messagingClient.get('/api/messages/inbox');
+      const res  = await messagingClient.get('/api/messages/inbox');
       const data = Array.isArray(res.data) ? res.data : [];
       const sorted = data.sort((a, b) => b.timestamp - a.timestamp);
       setConversations(sorted);
 
-      // Resolve each unique senderId to a display name
-      const senderIds = [...new Set(sorted.map((m) => m.senderId))];
-      const resolved = {};
-      await Promise.all(senderIds.map(async (id) => {
+      const senderIds = [...new Set(sorted.map(m => m.senderId))];
+      const resolved  = {};
+      await Promise.all(senderIds.map(async id => {
         const user = await getUserByCognitoSub(id);
-        if (user?.email) {
-          resolved[id] = user.email.split('@')[0];
-        }
+        if (user?.email) resolved[id] = user.email.split('@')[0];
       }));
       setDisplayNames(resolved);
     } catch {
-      setError('Unable to load inbox at this time. Please try again later.');
+      setError('Unable to load conversations. Please try again.');
     } finally {
       setLoading(false);
     }
   }
 
-  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, []); // eslint-disable-line
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Nav email={email} profileType={profileType} signOut={signOut} />
-
-      <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Messages</h1>
-          <p className="mt-1 text-sm text-slate-500">Your recent conversations</p>
+    <div className={styles.page}>
+      {/* Header */}
+      <div className={styles.header}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <Title2>Messages</Title2>
+            <Body1 style={{ color: tokens.colorNeutralForeground2, marginTop: '4px' }}>
+              Your recent conversations
+            </Body1>
+          </div>
+          {!loading && (
+            <Button appearance="subtle" icon={<ArrowSyncRegular />} onClick={load} size="small">
+              Refresh
+            </Button>
+          )}
         </div>
+      </div>
 
-        {/* Error */}
+      {/* Content */}
+      <div className={styles.scrollArea}>
         {error && (
-          <div className="mb-4 flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px', borderRadius: tokens.borderRadiusMedium,
+            backgroundColor: '#FDE7E9', color: '#750B1C', marginBottom: '16px', maxWidth: '760px' }}>
             <span>{error}</span>
-            <button
-              type="button"
-              onClick={load}
-              className="ml-4 shrink-0 text-xs font-semibold underline hover:no-underline"
-            >
-              Retry
-            </button>
+            <Button appearance="transparent" size="small" onClick={load}>Retry</Button>
           </div>
         )}
 
-        {/* Skeletons */}
         {loading && (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => <ConversationSkeleton key={i} />)}
+          <div className={styles.list}>
+            {[1, 2, 3, 4].map(i => <SkeletonItem key={i} />)}
           </div>
         )}
 
-        {/* Empty */}
         {!loading && !error && conversations.length === 0 && (
-          <div className="flex flex-col items-center rounded-xl border border-dashed border-slate-300 bg-white py-16 text-center">
-            <svg
-              className="mb-3 h-10 w-10 text-slate-300"
-              fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
-            </svg>
-            <p className="text-sm font-medium text-slate-500">No messages yet</p>
-            <p className="mt-1 text-xs text-slate-400">
-              Start a conversation from a booking or interviewer profile
-            </p>
+          <div className={styles.emptyState}>
+            <ChatRegular style={{ fontSize: '48px' }} />
+            <Subtitle2>No messages yet</Subtitle2>
+            <Body2 style={{ textAlign: 'center', maxWidth: '320px' }}>
+              Start a conversation from an interviewer's profile or a session booking.
+            </Body2>
           </div>
         )}
 
-        {/* Conversation list */}
-        {!loading && !error && conversations.length > 0 && (
-          <div className="space-y-3">
+        {!loading && conversations.length > 0 && (
+          <div className={styles.list}>
             {conversations.map((msg, i) => (
               <ConversationItem
                 key={msg.roomId ?? i}
@@ -231,7 +285,7 @@ export function Inbox({ email, profileType, signOut, userId }) {
             ))}
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

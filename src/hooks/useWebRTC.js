@@ -128,6 +128,7 @@ export function useWebRTC({ bookingId, scheduledAt, durationMinutes, profileType
       // 3. Socket connection
       LOG('connecting to signaling server');
       const socket = io(signalingUrl, {
+        path: '/socket.io/signaling',
         auth: { token },
         transports: ['websocket'],
         timeout: 10_000,

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { fetchAuthSession, fetchUserAttributes } from 'aws-amplify/auth';
 import { AuthGuard } from './components/AuthGuard';
+import { AppShell } from './components/AppShell';
 import { Availability } from './pages/Availability';
 import { Bookings } from './pages/Bookings';
 import { Dashboard } from './pages/Dashboard';
@@ -13,130 +14,105 @@ import { Inbox } from './components/messaging/Inbox';
 import { ChatWindow } from './components/messaging/ChatWindow';
 
 function App({ signOut, user }) {
-  const [attributes, setAttributes] = useState({});
+  const [attributes,      setAttributes]      = useState({});
   const [attributesError, setAttributesError] = useState('');
   const loggedTokenForUser = useRef(null);
 
   useEffect(() => {
     if (!user?.userId || loggedTokenForUser.current === user.userId) return;
     loggedTokenForUser.current = user.userId;
-
     fetchAuthSession()
-      .then((session) => {
-        if (session.tokens?.idToken) {
-          console.log(session.tokens.idToken.toString());
-        }
-      })
-      .catch((error) => console.error('Unable to load id token.', error));
+      .then(session => { if (session.tokens?.idToken) console.log(session.tokens.idToken.toString()); })
+      .catch(err => console.error('Unable to load id token.', err));
   }, [user?.userId]);
 
   useEffect(() => {
     let isMounted = true;
     fetchUserAttributes()
-      .then((attrs) => {
-        if (isMounted) {
-          setAttributes(attrs);
-          setAttributesError('');
-        }
-      })
-      .catch(() => {
-        if (isMounted) setAttributesError('Unable to load user attributes.');
-      });
-    return () => {
-      isMounted = false;
-    };
+      .then(attrs => { if (isMounted) { setAttributes(attrs); setAttributesError(''); } })
+      .catch(() => { if (isMounted) setAttributesError('Unable to load user attributes.'); });
+    return () => { isMounted = false; };
   }, [user?.userId]);
 
   const email = useMemo(
     () => attributes.email || user?.signInDetails?.loginId || user?.username || 'Unknown user',
     [attributes.email, user],
   );
-
-  // null while attributes are still loading — AuthGuard and Onboarding both
-  // wait on this value before doing anything
   const profileType = attributes['custom:profile_type'] ?? null;
+  const userId      = user?.userId;
+
+  // Shell wraps all authenticated, non-fullscreen pages
+  function Shell({ children }) {
+    return (
+      <AuthGuard profileType={profileType}>
+        <AppShell email={email} profileType={profileType} signOut={signOut} userId={userId}>
+          {children}
+        </AppShell>
+      </AuthGuard>
+    );
+  }
 
   return (
     <>
+      {import.meta.env.DEV && (
+        <div style={{
+          position: 'fixed', inset: '0 0 auto 0', zIndex: 10000,
+          backgroundColor: '#1a1a2e', borderBottom: '2px solid #e94560',
+          padding: '4px 16px', textAlign: 'center', fontSize: '12px',
+          color: '#e94560', fontWeight: 600, letterSpacing: '0.05em',
+        }}>
+          DEVELOPMENT — {import.meta.env.MODE} &nbsp;|&nbsp; {import.meta.env.VITE_API_BASE_URL ?? 'no API URL set'}
+        </div>
+      )}
+
       {attributesError && (
-        <div className="fixed inset-x-0 top-0 z-50 border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-900">
+        <div style={{
+          position: 'fixed', inset: '0 0 auto 0', zIndex: 9999,
+          backgroundColor: '#FFF4CE', borderBottom: '1px solid #F7E28D',
+          padding: '8px 16px', textAlign: 'center', fontSize: '14px', color: '#835B00',
+        }}>
           {attributesError}
         </div>
       )}
 
       <Routes>
-        {/*
-          AuthGuard checks the backend on every /dashboard mount.
-          It redirects to /onboarding if the profile is absent or incomplete.
-        */}
-        <Route
-          element={
-            <AuthGuard profileType={profileType}>
-              <Dashboard email={email} profileType={profileType} signOut={signOut} userId={user?.userId} />
-            </AuthGuard>
-          }
-          path="/dashboard"
-        />
+        <Route path="/dashboard" element={
+          <Shell><Dashboard email={email} profileType={profileType} userId={userId} /></Shell>
+        } />
 
-        <Route
-          element={
-            <AuthGuard profileType={profileType}>
-              <Discovery email={email} profileType={profileType} signOut={signOut} />
-            </AuthGuard>
-          }
-          path="/discovery"
-        />
+        <Route path="/discovery" element={
+          <Shell><Discovery email={email} profileType={profileType} /></Shell>
+        } />
 
-        <Route
-          element={
-            <AuthGuard profileType={profileType}>
-              <Availability email={email} profileType={profileType} signOut={signOut} />
-            </AuthGuard>
-          }
-          path="/availability"
-        />
+        <Route path="/availability" element={
+          <Shell><Availability email={email} profileType={profileType} signOut={signOut} /></Shell>
+        } />
 
-        <Route
-          element={
-            <AuthGuard profileType={profileType}>
-              <Bookings email={email} profileType={profileType} signOut={signOut} />
-            </AuthGuard>
-          }
-          path="/bookings"
-        />
+        <Route path="/bookings" element={
+          <Shell><Bookings email={email} profileType={profileType} /></Shell>
+        } />
 
-        <Route
-          element={
-            <AuthGuard profileType={profileType}>
-              <InterviewRoom profileType={profileType} />
-            </AuthGuard>
-          }
-          path="/room/:id"
-        />
+        <Route path="/messages" element={
+          <Shell><Inbox userId={userId} /></Shell>
+        } />
 
-        <Route
-          element={
-            <AuthGuard profileType={profileType}>
-              <Inbox email={email} profileType={profileType} signOut={signOut} userId={user?.userId} />
-            </AuthGuard>
-          }
-          path="/messages"
-        />
+        <Route path="/messages/:targetUserId" element={
+          <Shell><ChatWindow userId={userId} /></Shell>
+        } />
 
-        <Route
-          element={
-            <AuthGuard profileType={profileType}>
-              <ChatWindow email={email} profileType={profileType} signOut={signOut} userId={user?.userId} />
-            </AuthGuard>
-          }
-          path="/messages/:targetUserId"
-        />
+        <Route path="/profile/edit" element={
+          <Shell><EditProfile profileType={profileType} /></Shell>
+        } />
 
-        <Route element={<Onboarding profileType={profileType} />} path="/onboarding" />
+        <Route path="/room/:id" element={
+          <AuthGuard profileType={profileType}>
+            <InterviewRoom profileType={profileType} />
+          </AuthGuard>
+        } />
 
-        <Route element={<EditProfile profileType={profileType} />} path="/profile/edit" />
+        <Route path="/onboarding" element={<Onboarding profileType={profileType} />} />
 
-        <Route element={<Navigate replace to="/dashboard" />} path="*" />
+        <Route path="*" element={<Navigate replace to="/dashboard" />} />
       </Routes>
     </>
   );
