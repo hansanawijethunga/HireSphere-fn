@@ -80,7 +80,7 @@ export function useWebRTC({ bookingId, scheduledAt, durationMinutes, profileType
   useEffect(() => {
     if (!bookingId) return;
 
-    const signalingUrl = import.meta.env.VITE_SIGNALING_URL;
+    const signalingUrl = import.meta.env.VITE_SIGNALING_URL ?? import.meta.env.VITE_API_BASE_URL;
     LOG('init — bookingId:', bookingId, '| url:', signalingUrl);
 
     if (!signalingUrl) {

@@ -2,7 +2,7 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 import { fetchAuthSession } from 'aws-amplify/auth';
 
-const BASE_URL = import.meta.env.VITE_MESSAGING_API_URL;
+const BASE_URL = import.meta.env.VITE_MESSAGING_API_URL ?? import.meta.env.VITE_API_BASE_URL;
 const MAX_RETRIES = 2;
 
 // ── Axios instance ─────────────────────────────────────────────────────────────

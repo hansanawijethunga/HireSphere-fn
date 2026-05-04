@@ -1,4 +1,4 @@
-const SEARCH_API_URL = import.meta.env.VITE_SEARCH_API_URL;
+const SEARCH_API_URL = import.meta.env.VITE_SEARCH_API_URL ?? import.meta.env.VITE_API_BASE_URL;
 
 export async function getUserByCognitoSub(cognitoSub) {
   try {

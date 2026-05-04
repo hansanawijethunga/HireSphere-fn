@@ -38,7 +38,7 @@ function recordFailure() {
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 const submissionClient = axios.create({
-  baseURL: import.meta.env.VITE_SUBMISSION_API_URL,
+  baseURL: import.meta.env.VITE_SUBMISSION_API_URL ?? import.meta.env.VITE_API_BASE_URL,
   timeout: 5_000,
   headers: { 'Content-Type': 'application/json' },
 });
