@@ -1,6 +1,6 @@
 import { fetchAuthSession, signOut } from 'aws-amplify/auth';
 
-const BOOKING_API_URL = import.meta.env.VITE_BOOKING_API_URL;
+const BOOKING_API_URL = import.meta.env.VITE_BOOKING_API_URL ?? import.meta.env.VITE_API_BASE_URL;
 
 // Auth-aware fetch scoped to the booking microservice's base URL.
 async function bookingApiFetch(path, options = {}) {

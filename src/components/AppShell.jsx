@@ -1,3 +1,4 @@
+import { version } from '../../package.json';
 import { makeStyles, tokens } from '@fluentui/react-components';
 import {
   Avatar,
@@ -155,6 +156,12 @@ const useStyles = makeStyles({
     display: 'flex',
     flexDirection: 'column',
   },
+  versionLabel: {
+    textAlign: 'center',
+    paddingTop: tokens.spacingVerticalS,
+    color: tokens.colorNeutralForeground4,
+    fontSize: tokens.fontSizeBase100,
+  },
 });
 
 function NavItem({ item, isActive, unreadCount }) {
@@ -241,6 +248,7 @@ export function AppShell({ email, profileType, signOut, userId, children }) {
           >
             Sign out
           </Button>
+          <Caption1 className={styles.versionLabel}>v{version}</Caption1>
         </div>
       </aside>
 
