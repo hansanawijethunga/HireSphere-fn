@@ -3,7 +3,18 @@ export const PROFILE_FIELDS = {
     {
       name: 'targetRole',
       label: 'Target Role',
-      type: 'text',
+      type: 'select',
+      options: [
+        'Software Engineer',
+        'Frontend Engineer',
+        'Backend Engineer',
+        'Full Stack Engineer',
+        'DevOps Engineer',
+        'Data Engineer',
+        'ML Engineer',
+        'Product Manager',
+        'QA Engineer',
+      ],
       required: true,
     },
     {
